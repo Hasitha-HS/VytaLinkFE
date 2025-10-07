@@ -1,0 +1,308 @@
+import React, { useState, useContext } from 'react';
+import { View, StyleSheet, ScrollView } from 'react-native';
+import { Text, TextInput, Button, Card, Snackbar, Menu } from 'react-native-paper';
+import { AuthContext } from '../context/AuthContext';
+import { Colors } from '../utils/Colors';
+import { toMessageString } from '../utils/Helpers';
+import DonorService from '../services/DonorService';
+
+const DonorRegistrationScreen = ({ navigation }) => {
+  const { user, updateUser } = useContext(AuthContext);
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    phoneNumber: '',
+    age: '',
+    gender: 'OTHER',
+    bloodType: 'O_POSITIVE',
+    address: '',
+    weight: ''
+  });
+  const [error, setError] = useState('');
+  const [snackbarVisible, setSnackbarVisible] = useState(false);
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [genderMenuVisible, setGenderMenuVisible] = useState(false);
+  const [bloodTypeMenuVisible, setBloodTypeMenuVisible] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleInputChange = (field, value) => {
+    setFormData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const validateForm = () => {
+    if (!formData.firstName || !formData.lastName || !formData.phoneNumber || 
+        !formData.age || !formData.address) {
+      return 'Please fill in all required fields';
+    }
+    if (isNaN(formData.age) || parseInt(formData.age) < 18 || parseInt(formData.age) > 65) {
+      return 'Age must be between 18 and 65';
+    }
+    if (formData.weight && (isNaN(formData.weight) || parseFloat(formData.weight) < 45 || parseFloat(formData.weight) > 200)) {
+      return 'Weight must be between 45 and 200 kg';
+    }
+    return null;
+  };
+
+  const handleRegisterAsDonor = async () => {
+    setError('');
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      setSnackbarMessage(validationError);
+      setSnackbarVisible(true);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      const donorData = {
+        userId: user.id,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phoneNumber: formData.phoneNumber,
+        age: formData.age,
+        gender: formData.gender,
+        bloodType: formData.bloodType,
+        address: formData.address,
+        weight: formData.weight,
+        email: user.email
+      };
+
+      const response = await DonorService.registerDonor(donorData);
+      
+      if (response.id) {
+        // Update user context with donor information
+        await updateUser({
+          donorId: response.id,
+          role: 'DONOR',
+          ...response
+        });
+        
+        setSnackbarMessage('Successfully registered as a donor!');
+        setSnackbarVisible(true);
+        
+        // Navigate back to profile
+        setTimeout(() => {
+          navigation.goBack();
+        }, 2000);
+      } else {
+        setError('Donor registration failed');
+        setSnackbarMessage('Donor registration failed');
+        setSnackbarVisible(true);
+      }
+    } catch (error) {
+      console.error('Donor registration error:', error);
+      const msg = toMessageString(error.message) || 'Donor registration failed';
+      setError(msg);
+      setSnackbarMessage(msg);
+      setSnackbarVisible(true);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <ScrollView style={styles.container}>
+      <View style={styles.content}>
+        <Card style={styles.card}>
+          <Card.Content>
+            <Text variant="headlineSmall" style={styles.title}>Register as Donor</Text>
+            <Text variant="bodyMedium" style={styles.subtitle}>
+              Complete your donor profile to help save lives
+            </Text>
+            
+            <View style={styles.nameRow}>
+              <TextInput
+                label="First Name *"
+                value={formData.firstName}
+                onChangeText={(value) => handleInputChange('firstName', value)}
+                style={[styles.input, styles.halfInput]}
+                mode="outlined"
+              />
+              <TextInput
+                label="Last Name *"
+                value={formData.lastName}
+                onChangeText={(value) => handleInputChange('lastName', value)}
+                style={[styles.input, styles.halfInput]}
+                mode="outlined"
+              />
+            </View>
+            
+            <TextInput
+              label="Phone Number *"
+              value={formData.phoneNumber}
+              onChangeText={(value) => handleInputChange('phoneNumber', value)}
+              style={styles.input}
+              mode="outlined"
+              keyboardType="phone-pad"
+            />
+            
+            <TextInput
+              label="Age *"
+              value={formData.age}
+              onChangeText={(value) => handleInputChange('age', value)}
+              style={styles.input}
+              mode="outlined"
+              keyboardType="numeric"
+            />
+            
+            <View style={styles.dropdownContainer}>
+              <Menu
+                visible={genderMenuVisible}
+                onDismiss={() => setGenderMenuVisible(false)}
+                anchor={
+                  <Button
+                    mode="outlined"
+                    onPress={() => setGenderMenuVisible(true)}
+                    style={styles.dropdownButton}
+                  >
+                    Gender: {formData.gender}
+                  </Button>
+                }
+              >
+                <Menu.Item onPress={() => { handleInputChange('gender', 'MALE'); setGenderMenuVisible(false); }} title="Male" />
+                <Menu.Item onPress={() => { handleInputChange('gender', 'FEMALE'); setGenderMenuVisible(false); }} title="Female" />
+                <Menu.Item onPress={() => { handleInputChange('gender', 'OTHER'); setGenderMenuVisible(false); }} title="Other" />
+              </Menu>
+            </View>
+            
+            <View style={styles.dropdownContainer}>
+              <Menu
+                visible={bloodTypeMenuVisible}
+                onDismiss={() => setBloodTypeMenuVisible(false)}
+                anchor={
+                  <Button
+                    mode="outlined"
+                    onPress={() => setBloodTypeMenuVisible(true)}
+                    style={styles.dropdownButton}
+                  >
+                    Blood Type: {formData.bloodType.replace('_', ' ')}
+                  </Button>
+                }
+              >
+                <Menu.Item onPress={() => { handleInputChange('bloodType', 'A_POSITIVE'); setBloodTypeMenuVisible(false); }} title="A+" />
+                <Menu.Item onPress={() => { handleInputChange('bloodType', 'A_NEGATIVE'); setBloodTypeMenuVisible(false); }} title="A-" />
+                <Menu.Item onPress={() => { handleInputChange('bloodType', 'B_POSITIVE'); setBloodTypeMenuVisible(false); }} title="B+" />
+                <Menu.Item onPress={() => { handleInputChange('bloodType', 'B_NEGATIVE'); setBloodTypeMenuVisible(false); }} title="B-" />
+                <Menu.Item onPress={() => { handleInputChange('bloodType', 'AB_POSITIVE'); setBloodTypeMenuVisible(false); }} title="AB+" />
+                <Menu.Item onPress={() => { handleInputChange('bloodType', 'AB_NEGATIVE'); setBloodTypeMenuVisible(false); }} title="AB-" />
+                <Menu.Item onPress={() => { handleInputChange('bloodType', 'O_POSITIVE'); setBloodTypeMenuVisible(false); }} title="O+" />
+                <Menu.Item onPress={() => { handleInputChange('bloodType', 'O_NEGATIVE'); setBloodTypeMenuVisible(false); }} title="O-" />
+              </Menu>
+            </View>
+            
+            <TextInput
+              label="Address *"
+              value={formData.address}
+              onChangeText={(value) => handleInputChange('address', value)}
+              style={styles.input}
+              mode="outlined"
+              multiline
+              numberOfLines={2}
+            />
+            
+            <TextInput
+              label="Weight (kg)"
+              value={formData.weight}
+              onChangeText={(value) => handleInputChange('weight', value)}
+              style={styles.input}
+              mode="outlined"
+              keyboardType="numeric"
+            />
+            
+            {error ? <Text style={styles.error}>{error}</Text> : null}
+            
+            <Button 
+              mode="contained" 
+              onPress={handleRegisterAsDonor} 
+              loading={isLoading} 
+              disabled={!formData.firstName || !formData.lastName || !formData.phoneNumber || 
+                       !formData.age || !formData.address}
+              style={styles.registerButton}
+            >
+              Register as Donor
+            </Button>
+            
+            <Button 
+              mode="text" 
+              onPress={() => navigation.goBack()}
+              style={styles.backButton}
+            >
+              Cancel
+            </Button>
+          </Card.Content>
+        </Card>
+      </View>
+      
+      <Snackbar
+        visible={snackbarVisible}
+        onDismiss={() => setSnackbarVisible(false)}
+        duration={3000}
+        style={{ backgroundColor: Colors.gray[800] }}
+      >
+        {snackbarMessage}
+      </Snackbar>
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: Colors.gray[50],
+  },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
+    padding: 16,
+    minHeight: '100%',
+  },
+  card: {
+    paddingVertical: 8,
+  },
+  title: {
+    marginBottom: 8,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  subtitle: {
+    marginBottom: 24,
+    textAlign: 'center',
+    color: Colors.gray[600],
+  },
+  input: {
+    marginBottom: 12,
+  },
+  nameRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  halfInput: {
+    flex: 1,
+    marginRight: 8,
+  },
+  error: {
+    color: Colors.error,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  registerButton: {
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  backButton: {
+    marginTop: 8,
+  },
+  dropdownContainer: {
+    marginBottom: 12,
+  },
+  dropdownButton: {
+    justifyContent: 'flex-start',
+  },
+});
+
+export default DonorRegistrationScreen;
