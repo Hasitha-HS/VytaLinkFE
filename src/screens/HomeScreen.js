@@ -4,7 +4,8 @@ import {
   ScrollView,
   StyleSheet,
   RefreshControl,
-  Dimensions
+  Dimensions,
+  ActivityIndicator
 } from 'react-native';
 import {
   Text,
@@ -23,6 +24,7 @@ import AlertCard from '../components/alerts/AlertCard';
 import { Colors } from '../utils/Colors';
 import { formatBloodType } from '../utils/Constants';
 import EmergencyAlertService from '../services/EmergencyAlertService';
+import DashboardService from '../services/DashboardService';
 import Icon from '../components/common/Icon';
 import { Icons, getIcon } from '../utils/Icons';
 
@@ -37,12 +39,19 @@ const HomeScreen = ({ navigation }) => {
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
-  // Mock news data - replace with actual API call
-  const [latestNews] = useState({
+  // Real data from API
+  const [latestNews, setLatestNews] = useState({
     title: "Blood Donation Drive Success",
     content: "Our recent blood donation drive collected over 500 units, helping save countless lives in our community.",
     date: "2 hours ago"
   });
+
+  const [stats, setStats] = useState({
+    activeAlerts: 0,
+    totalDonors: 0,
+    recentDonations: 0
+  });
+  const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
     loadData();
@@ -50,13 +59,34 @@ const HomeScreen = ({ navigation }) => {
 
   const loadData = async () => {
     try {
-      await refreshAlerts();
+      setLoadingStats(true);
+      await Promise.all([
+        refreshAlerts(),
+        loadDashboardStats()
+      ]);
     } catch (error) {
       console.error('Error loading data:', error);
       const msg = error?.message || 'Error loading data. Please try again.';
       showSnackbar(msg);
+    } finally {
+      setLoadingStats(false);
     }
   };
+
+  const loadDashboardStats = async () => {
+    try {
+      const statsData = await DashboardService.getDashboardStats();
+      setStats({
+        activeAlerts: statsData.activeAlerts || 0,
+        totalDonors: statsData.totalDonors || 0,
+        recentDonations: statsData.recentDonations || 0
+      });
+    } catch (error) {
+      console.error('Error loading dashboard stats:', error);
+      // Keep default values if API fails
+    }
+  };
+
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -81,8 +111,44 @@ const HomeScreen = ({ navigation }) => {
     setSnackbarVisible(true);
   };
 
-  const activeAlerts = alerts.filter(alert => alert.status === 'ACTIVE');
-  const canCreateAlerts = user?.role === 'ADMIN' || user?.role === 'STAFF';
+  // Filter alerts to show only critical emergencies that are relevant to the current user
+  const activeAlerts = alerts.filter(alert => {
+    // Only show active alerts
+    if (alert.status !== 'ACTIVE') return false;
+    
+    // Only show critical urgency alerts
+    if (alert.urgencyLevel !== 'CRITICAL') return false;
+    
+    // For donors and users, only show alerts for their blood type or universal donors
+    if (user?.role === 'DONOR' || user?.role === 'USER') {
+      const userBloodType = user?.bloodType;
+      const alertBloodType = alert.bloodType;
+      
+      // Show if it's a universal blood type request (O- or O+)
+      if (alertBloodType === 'O_NEGATIVE' || alertBloodType === 'O_POSITIVE') {
+        return true;
+      }
+      
+      // Show if it matches the user's blood type
+      if (userBloodType === alertBloodType) {
+        return true;
+      }
+      
+      // Show if user has O- blood (universal donor)
+      if (userBloodType === 'O_NEGATIVE') {
+        return true;
+      }
+      
+      return false;
+    }
+    
+    // For staff/admin, show all critical alerts
+    if (user?.role === 'ADMIN' || user?.role === 'STAFF') {
+      return true;
+    }
+    
+    return false;
+  });
 
   // Calculate next donation eligibility
   const getNextDonationEligibility = () => {
@@ -113,28 +179,56 @@ const HomeScreen = ({ navigation }) => {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Icon Test Section - Temporary */}
-        <View style={styles.newsSection}>
-          <Card style={styles.newsCard}>
-            <Card.Content>
-              <Text variant="titleMedium" style={styles.newsTitle}>
-                Icon Test
-              </Text>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginTop: 10 }}>
-                <Icon {...getIcon('tabHome', 32, Colors.primary)} />
-                <Icon {...getIcon('tabNotifications', 32, Colors.primary)} />
-                <Icon {...getIcon('tabProfile', 32, Colors.primary)} />
-              </View>
-              {/* <Button 
-                mode="outlined" 
-                onPress={() => navigation.navigate('IconTest')}
-                style={{ marginTop: 10 }}
-              >
-                Test All Icons
-              </Button> */}
-            </Card.Content>
-          </Card>
-        </View>
+        {/* Quick Stats - Only for Admin and Staff */}
+        {(user?.role === 'ADMIN' || user?.role === 'STAFF') && (
+          <View style={styles.statsSection}>
+            <Card style={styles.statsCard}>
+              <Card.Content>
+                <Text variant="titleMedium" style={styles.statsTitle}>
+                  Quick Stats
+                </Text>
+                {loadingStats ? (
+                  <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="small" color={Colors.primary} />
+                    <Text variant="bodyMedium" style={styles.loadingText}>
+                      Loading statistics...
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.statsRow}>
+                    <View style={styles.statItem}>
+                      <Icon {...getIcon('warning', 24, Colors.error)} />
+                      <Text variant="headlineSmall" style={styles.statNumber}>
+                        {stats.activeAlerts}
+                      </Text>
+                      <Text variant="bodySmall" style={styles.statLabel}>
+                        Active Alerts
+                      </Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Icon {...getIcon('user', 24, Colors.primary)} />
+                      <Text variant="headlineSmall" style={styles.statNumber}>
+                        {stats.totalDonors}
+                      </Text>
+                      <Text variant="bodySmall" style={styles.statLabel}>
+                        Total Donors
+                      </Text>
+                    </View>
+                    <View style={styles.statItem}>
+                      <Icon {...getIcon('heart', 24, Colors.success)} />
+                      <Text variant="headlineSmall" style={styles.statNumber}>
+                        {stats.recentDonations}
+                      </Text>
+                      <Text variant="bodySmall" style={styles.statLabel}>
+                        Recent Donations
+                      </Text>
+                    </View>
+                  </View>
+                )}
+              </Card.Content>
+            </Card>
+          </View>
+        )}
 
         {/* Latest News Card */}
         <View style={styles.newsSection}>
@@ -208,29 +302,42 @@ const HomeScreen = ({ navigation }) => {
           </Card>
         </View>
 
-        {/* Emergency Alerts Section */}
-        {activeAlerts.length > 0 && (
-          <View style={styles.alertsSection}>
-            <View style={styles.sectionHeader}>
-              <Icon {...getIcon('warning', 24, Colors.error)} />
-              <Text variant="titleMedium" style={styles.sectionTitle}>
-                Emergency Alerts
-              </Text>
+        {/* Critical Emergencies Section */}
+        <View style={styles.alertsSection}>
+          <View style={styles.sectionHeader}>
+            <Icon {...getIcon('warning', 24, Colors.error)} />
+            <Text variant="titleMedium" style={styles.sectionTitle}>
+              Critical Emergencies
+            </Text>
+            {activeAlerts.length > 0 && (
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>{activeAlerts.length}</Text>
               </View>
-            </View>
+            )}
+          </View>
 
-            {activeAlerts.map((alert) => (
+          {activeAlerts.length > 0 ? (
+            activeAlerts.map((alert) => (
               <AlertCard
                 key={alert.id}
                 alert={alert}
                 onRespond={handleEmergencyResponse}
                 currentUser={user}
               />
-            ))}
-          </View>
-        )}
+            ))
+          ) : (
+            <Card style={styles.noAlertsCard}>
+              <Card.Content>
+                <View style={styles.noAlertsContent}>
+                  <Icon {...getIcon('checkmark-circle', 32, Colors.success)} />
+                  <Text variant="bodyMedium" style={styles.noAlertsText}>
+                    No critical emergencies requiring your attention at this time.
+                  </Text>
+                </View>
+              </Card.Content>
+            </Card>
+          )}
+        </View>
 
         {/* Navigation Panel */}
         <View style={styles.navigationSection}>
@@ -259,7 +366,7 @@ const HomeScreen = ({ navigation }) => {
                   Alerts
                 </Button>
                 
-                {user?.role !== 'DONOR' && (
+                {user?.role !== 'DONOR' && user?.role !== 'USER' && (
                   <Button
                     mode="contained"
                     onPress={() => navigation.navigate('DonorRegistration')}
@@ -270,20 +377,186 @@ const HomeScreen = ({ navigation }) => {
                   </Button>
                 )}
                 
-                {canCreateAlerts && (
-                  <Button
-                    mode="contained"
-                    onPress={() => navigation.navigate('EmergencyAlertCreation')}
-                    style={[styles.navButton, { backgroundColor: Colors.error }]}
-                    icon="alert"
-                  >
-                    Create Alert
-                  </Button>
+                
+                {(user?.role === 'ADMIN' || user?.role === 'STAFF') && (
+                  <>
+                    <Button
+                      mode="outlined"
+                      onPress={() => navigation.navigate('DonorManagement')}
+                      style={styles.navButton}
+                      icon="account-group"
+                    >
+                      Manage Donors
+                    </Button>
+                    
+                    <Button
+                      mode="outlined"
+                      onPress={() => navigation.navigate('EmergencyAlertCreation')}
+                      style={styles.navButton}
+                      icon="alert-plus"
+                    >
+                      Create Alert
+                    </Button>
+                    
+                    <Button
+                      mode="outlined"
+                      onPress={() => navigation.navigate('DonationHistory')}
+                      style={styles.navButton}
+                      icon="history"
+                    >
+                      Donation History
+                    </Button>
+                  </>
                 )}
               </View>
             </Card.Content>
           </Card>
         </View>
+
+        {/* Management Section for Admin/Staff */}
+        {(user?.role === 'ADMIN' || user?.role === 'STAFF') && (
+          <View style={styles.managementSection}>
+            <Card style={styles.managementCard}>
+              <Card.Content>
+                <Text variant="titleMedium" style={styles.managementTitle}>
+                  Management Tools
+                </Text>
+                <Text variant="bodyMedium" style={styles.managementSubtitle}>
+                  Access all system management features
+                </Text>
+                
+                <View style={styles.managementGrid}>
+                  <Button
+                    mode="contained"
+                    onPress={() => navigation.navigate('DonorManagement')}
+                    style={[styles.managementButton, { backgroundColor: Colors.primary }]}
+                    icon="account-group"
+                  >
+                    Donor Management
+                  </Button>
+                  
+                  <Button
+                    mode="contained"
+                    onPress={() => navigation.navigate('EmergencyAlertCreation')}
+                    style={[styles.managementButton, { backgroundColor: Colors.error }]}
+                    icon="alert-plus"
+                  >
+                    Create Emergency Alert
+                  </Button>
+                  
+                  <Button
+                    mode="contained"
+                    onPress={() => navigation.navigate('DonationHistory')}
+                    style={[styles.managementButton, { backgroundColor: Colors.success }]}
+                    icon="history"
+                  >
+                    Donation History
+                  </Button>
+                  
+                  <Button
+                    mode="contained"
+                    onPress={() => navigation.navigate('Notifications')}
+                    style={[styles.managementButton, { backgroundColor: Colors.warning }]}
+                    icon="bell"
+                  >
+                    View Alerts
+                  </Button>
+                  
+                  <Button
+                    mode="contained"
+                    onPress={() => navigation.navigate('CampManagement')}
+                    style={[styles.managementButton, { backgroundColor: Colors.info }]}
+                    icon="calendar"
+                  >
+                    Camp Management
+                  </Button>
+                  
+                  <Button
+                    mode="contained"
+                    onPress={() => navigation.navigate('DonationEntry')}
+                    style={[styles.managementButton, { backgroundColor: Colors.secondary }]}
+                    icon="plus"
+                  >
+                    Add Donation
+                  </Button>
+                  
+                </View>
+              </Card.Content>
+            </Card>
+          </View>
+        )}
+
+        {/* Camp Organizer Section */}
+        {user?.role === 'CAMP_ORGANIZER' && (
+          <View style={styles.managementSection}>
+            <Card style={styles.managementCard}>
+              <Card.Content>
+                <Text variant="titleMedium" style={styles.managementTitle}>
+                  Camp Management
+                </Text>
+                <Text variant="bodyMedium" style={styles.managementSubtitle}>
+                  Manage your blood donation camps
+                </Text>
+                
+                <View style={styles.managementGrid}>
+                  <Button
+                    mode="contained"
+                    onPress={() => navigation.navigate('CampManagement')}
+                    style={[styles.managementButton, { backgroundColor: Colors.primary }]}
+                    icon="calendar"
+                  >
+                    My Camps
+                  </Button>
+                  
+                  <Button
+                    mode="contained"
+                    onPress={() => navigation.navigate('CampCreation')}
+                    style={[styles.managementButton, { backgroundColor: Colors.success }]}
+                    icon="plus"
+                  >
+                    Create Camp
+                  </Button>
+                </View>
+              </Card.Content>
+            </Card>
+          </View>
+        )}
+
+        {/* User Section */}
+        {user?.role === 'USER' && (
+          <View style={styles.managementSection}>
+            <Card style={styles.managementCard}>
+              <Card.Content>
+                <Text variant="titleMedium" style={styles.managementTitle}>
+                  Get Started
+                </Text>
+                <Text variant="bodyMedium" style={styles.managementSubtitle}>
+                  Register as a blood donor to help save lives
+                </Text>
+                
+                <View style={styles.managementGrid}>
+                  <Button
+                    mode="contained"
+                    onPress={() => navigation.navigate('DonorRegistration')}
+                    style={[styles.managementButton, { backgroundColor: Colors.primary }]}
+                    icon="water"
+                  >
+                    Become a Donor
+                  </Button>
+                  
+                  <Button
+                    mode="outlined"
+                    onPress={() => navigation.navigate('DonationHistory')}
+                    style={styles.managementButton}
+                    icon="history"
+                  >
+                    My Donations
+                  </Button>
+                </View>
+              </Card.Content>
+            </Card>
+          </View>
+        )}
 
         {/* Bottom spacing */}
         <View style={styles.bottomSpacing} />
@@ -334,6 +607,41 @@ const styles = StyleSheet.create({
   },
   scrollView: {
     flex: 1,
+  },
+  
+  // Stats Section
+  statsSection: {
+    padding: 16,
+    paddingBottom: 8,
+  },
+  statsCard: {
+    backgroundColor: Colors.white,
+    elevation: 2,
+    borderRadius: 12,
+  },
+  statsTitle: {
+    fontWeight: 'bold',
+    color: Colors.primary,
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+  },
+  statItem: {
+    alignItems: 'center',
+    flex: 1,
+  },
+  statNumber: {
+    fontWeight: 'bold',
+    color: Colors.primary,
+    marginTop: 8,
+  },
+  statLabel: {
+    color: Colors.gray[600],
+    textAlign: 'center',
+    marginTop: 4,
   },
   
   // News Section
@@ -471,6 +779,37 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   
+  // Management Section
+  managementSection: {
+    padding: 16,
+    paddingTop: 8,
+  },
+  managementCard: {
+    backgroundColor: Colors.white,
+    elevation: 2,
+    borderRadius: 12,
+  },
+  managementTitle: {
+    fontWeight: 'bold',
+    color: Colors.primary,
+    marginBottom: 4,
+  },
+  managementSubtitle: {
+    color: Colors.gray[600],
+    marginBottom: 16,
+  },
+  managementGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  managementButton: {
+    flex: 1,
+    minWidth: '45%',
+    marginBottom: 8,
+  },
+  
   // Common
   bottomSpacing: {
     height: 20,
@@ -500,6 +839,26 @@ const styles = StyleSheet.create({
   },
   snackbar: {
     backgroundColor: Colors.gray[800],
+  },
+  
+  // No Alerts Card
+  noAlertsCard: {
+    backgroundColor: Colors.success + '10',
+    borderColor: Colors.success + '30',
+    borderWidth: 1,
+    elevation: 1,
+  },
+  noAlertsContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+  },
+  noAlertsText: {
+    marginLeft: 12,
+    color: Colors.success,
+    textAlign: 'center',
+    flex: 1,
   },
 });
 

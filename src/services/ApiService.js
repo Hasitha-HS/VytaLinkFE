@@ -17,8 +17,12 @@ class ApiService {
       async (config) => {
         try {
           const token = await AsyncStorage.getItem(STORAGE_KEYS.USER_TOKEN);
+          console.log('🔑 Token from storage:', token ? `Present (${token.substring(0, 20)}...)` : 'Missing');
           if (token) {
             config.headers.Authorization = `Bearer ${token}`;
+            console.log('🔑 Added Bearer token to request:', config.url);
+          } else {
+            console.log('⚠️ No token found for request:', config.url);
           }
         } catch (error) {
           console.log('Error getting token:', error);
@@ -37,9 +41,14 @@ class ApiService {
       },
       async (error) => {
         if (error.response?.status === 401) {
-          // Token expired, logout user
-          await AsyncStorage.multiRemove([STORAGE_KEYS.USER_TOKEN, STORAGE_KEYS.USER_DATA]);
-          // Navigate to login screen
+          // Only clear token for auth-related endpoints, not for other API calls
+          const requestUrl = error.config?.url || '';
+          if (requestUrl.includes('/auth/')) {
+            console.log('🔑 Clearing token due to auth error');
+            await AsyncStorage.multiRemove([STORAGE_KEYS.USER_TOKEN, STORAGE_KEYS.USER_DATA]);
+          } else {
+            console.log('🔑 401 error on non-auth endpoint, keeping token');
+          }
         }
         return Promise.reject(error);
       }

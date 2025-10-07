@@ -10,12 +10,16 @@ class AuthService {
         username,
         password
       };
-      const response = await ApiService.post('/api/auth/login', payload);
+      const response = await ApiService.post('/auth/login', payload);
       
       if (response.token) {
         // Store token and user data
+        console.log('🔑 Storing token:', response.token.substring(0, 20) + '...');
         await AsyncStorage.setItem(STORAGE_KEYS.USER_TOKEN, response.token);
         await AsyncStorage.setItem(STORAGE_KEYS.USER_DATA, JSON.stringify(response));
+        console.log('✅ Token stored successfully');
+      } else {
+        console.log('❌ No token in login response');
       }
       
       return response;
@@ -29,7 +33,7 @@ class AuthService {
   async logout() {
     try {
       // Call logout endpoint
-      await ApiService.post('/api/auth/logout');
+      await ApiService.post('/auth/logout');
       
       // Clear stored data
       await AsyncStorage.multiRemove([
@@ -137,7 +141,7 @@ class AuthService {
         bloodBankId: userData.bloodBankId
       };
       
-      const response = await ApiService.post('/api/auth/register', payload);
+      const response = await ApiService.post('/auth/register', payload);
       
       if (response.token) {
         await AsyncStorage.setItem(STORAGE_KEYS.USER_TOKEN, response.token);
@@ -182,7 +186,7 @@ class AuthService {
   // Get user profile
   async getProfile() {
     try {
-      return await ApiService.get('/api/auth/profile');
+      return await ApiService.get('/auth/profile');
     } catch (error) {
       console.error('Get profile error:', error);
       throw error;
@@ -196,7 +200,7 @@ class AuthService {
         currentPassword,
         newPassword
       };
-      return await ApiService.post('/api/auth/change-password', payload);
+      return await ApiService.post('/auth/change-password', payload);
     } catch (error) {
       console.error('Change password error:', error);
       throw error;
@@ -206,7 +210,7 @@ class AuthService {
   // Get all users (Admin only)
   async getAllUsers() {
     try {
-      return await ApiService.get('/api/auth/users');
+      return await ApiService.get('/auth/users');
     } catch (error) {
       console.error('Get all users error:', error);
       throw error;
@@ -216,7 +220,7 @@ class AuthService {
   // Deactivate user (Admin only)
   async deactivateUser(userId) {
     try {
-      return await ApiService.post(`/api/auth/users/${userId}/deactivate`);
+      return await ApiService.post(`/auth/users/${userId}/deactivate`);
     } catch (error) {
       console.error('Deactivate user error:', error);
       throw error;
@@ -226,7 +230,7 @@ class AuthService {
   // Activate user (Admin only)
   async activateUser(userId) {
     try {
-      return await ApiService.post(`/api/auth/users/${userId}/activate`);
+      return await ApiService.post(`/auth/users/${userId}/activate`);
     } catch (error) {
       console.error('Activate user error:', error);
       throw error;

@@ -46,7 +46,7 @@ const DonationHistoryScreen = ({ navigation }) => {
   const loadDonations = async () => {
     try {
       setLoading(true);
-      const response = await DonationService.getDonorHistory(user.id);
+      const response = await DonationService.getDonationHistory(user.id);
       setDonations(response || []);
     } catch (error) {
       console.error('Error loading donations:', error);

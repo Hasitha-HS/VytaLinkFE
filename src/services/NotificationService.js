@@ -35,8 +35,14 @@ class NotificationService {
 
       // Request permissions if not granted
       if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
+        try {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        } catch (permissionError) {
+          console.warn('Permission request failed:', permissionError.message);
+          // Continue without notifications if permission fails
+          return null;
+        }
       }
 
       if (finalStatus !== 'granted') {
@@ -58,7 +64,8 @@ class NotificationService {
 
       return token;
     } catch (error) {
-      console.error('Error initializing notifications:', error);
+      console.warn('Error initializing notifications:', error.message);
+      // Don't throw error, just return null to continue app functionality
       return null;
     }
   }

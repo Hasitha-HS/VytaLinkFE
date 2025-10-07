@@ -1,4 +1,4 @@
-export const API_BASE_URL = 'http://192.168.1.50:8080';
+export const API_BASE_URL = 'http://192.168.1.50:8080/api';
 
 export const BLOOD_TYPES = [
   'O_POSITIVE',
@@ -28,7 +28,8 @@ export const USER_ROLES = [
   'ADMIN',
   'STAFF',
   'CAMP_ORGANIZER',
-  'DONOR'
+  'DONOR',
+  'USER'
 ];
 
 export const RESPONSE_TYPES = [

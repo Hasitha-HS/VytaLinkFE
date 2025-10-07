@@ -32,6 +32,14 @@ export const Colors = {
   error: '#ef4444',
   info: '#3b82f6',
   
+  // Additional colors
+  background: '#f9fafb',
+  text: {
+    primary: '#111827',
+    secondary: '#6b7280',
+    disabled: '#9ca3af'
+  },
+  
   // Neutral colors
   white: '#ffffff',
   black: '#000000',

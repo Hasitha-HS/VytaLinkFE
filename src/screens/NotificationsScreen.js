@@ -13,18 +13,23 @@ import {
   Chip,
   Searchbar,
   SegmentedButtons,
-  Snackbar
+  Snackbar,
+  Button
 } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 
 import { AlertContext } from '../context/AlertContext';
+import { AuthContext } from '../context/AuthContext';
 import { Colors, getBloodTypeColor, getUrgencyColor } from '../utils/Colors';
 import { formatBloodType, formatDateTime } from '../utils/Constants';
+import EmergencyAlertService from '../services/EmergencyAlertService';
+import DonorService from '../services/DonorService';
 
 const { width } = Dimensions.get('window');
 
 const NotificationsScreen = ({ navigation }) => {
   const { alerts, refreshAlerts } = useContext(AlertContext);
+  const { user } = useContext(AuthContext);
   
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,6 +61,55 @@ const NotificationsScreen = ({ navigation }) => {
     setRefreshing(true);
     await loadData();
     setRefreshing(false);
+  };
+
+  const handleDonorResponse = async (alertId, response) => {
+    try {
+      // Use user ID for non-donor users, or donorId if available
+      const userId = user?.donorId || user?.id;
+      
+      if (!userId) {
+        setSnackbarMessage('User ID not found. Please try logging in again.');
+        setSnackbarVisible(true);
+        return;
+      }
+
+      await EmergencyAlertService.respondToAlert(alertId, userId, response);
+      setSnackbarMessage(`Response "${response}" submitted successfully!`);
+      setSnackbarVisible(true);
+      await refreshAlerts();
+    } catch (error) {
+      console.error('Error responding to alert:', error);
+      const msg = error?.response?.data?.message || 'Error submitting response. Please try again.';
+      setSnackbarMessage(msg);
+      setSnackbarVisible(true);
+    }
+  };
+
+  const handleCallDonor = async (donorId) => {
+    try {
+      const contact = await DonorService.getDonorContact(donorId);
+      // In a real app, you would use Linking to make the call
+      setSnackbarMessage(`Calling ${contact.phone}...`);
+      setSnackbarVisible(true);
+    } catch (error) {
+      console.error('Error getting donor contact:', error);
+      setSnackbarMessage('Error getting contact information');
+      setSnackbarVisible(true);
+    }
+  };
+
+  const handleSendNotification = async (donorId, alertId) => {
+    try {
+      const message = `Thank you for responding to the emergency blood request. Please come to the hospital as soon as possible.`;
+      await DonorService.sendMessageToDonor(donorId, message, 'FCM', alertId);
+      setSnackbarMessage('FCM notification sent successfully!');
+      setSnackbarVisible(true);
+    } catch (error) {
+      console.error('Error sending notification:', error);
+      setSnackbarMessage('Error sending notification');
+      setSnackbarVisible(true);
+    }
   };
 
   const filterNotifications = () => {
@@ -115,68 +169,133 @@ const NotificationsScreen = ({ navigation }) => {
     }
   };
 
-  const renderNotificationItem = ({ item: alert }) => (
-    <Card 
-      style={styles.notificationCard}
-      onPress={() => navigation.navigate('EmergencyAlertDetails', { alertId: alert.id })}
-    >
-      <Card.Content>
-        <View style={styles.notificationHeader}>
-          <Avatar.Icon
-            size={48}
-            icon="water"
-            style={[styles.bloodTypeAvatar, { backgroundColor: getBloodTypeColor(alert.bloodType) }]}
-          />
-          <View style={styles.notificationContent}>
-            <Text variant="titleMedium" style={styles.hospitalName}>
-              {alert.hospitalName}
-            </Text>
-            <Text variant="bodyMedium" style={styles.notificationSubtitle}>
-              Needs {formatBloodType(alert.bloodType)} - {alert.unitsNeeded} units
-            </Text>
-            <Text variant="bodySmall" style={styles.timestamp}>
-              {formatDateTime(alert.createdAt)}
-            </Text>
-          </View>
-          <View style={styles.notificationMeta}>
-            <Chip
-              mode="outlined"
-              textStyle={[styles.urgencyChip, { color: getUrgencyColor(alert.urgencyLevel) }]}
-              style={[styles.urgencyChipContainer, { borderColor: getUrgencyColor(alert.urgencyLevel) }]}
-            >
-              {alert.urgencyLevel}
-            </Chip>
-            <View style={styles.statusContainer}>
-              <Ionicons
-                name={getStatusIcon(alert.status)}
-                size={16}
-                color={getStatusColor(alert.status)}
-              />
-              <Text style={[styles.statusText, { color: getStatusColor(alert.status) }]}>
-                {alert.status}
+  const renderNotificationItem = ({ item: alert }) => {
+    const isDonor = user?.role === 'DONOR';
+    const userId = user?.donorId || user?.id;
+    const hasResponded = alert.responses?.some(r => r.donorId === userId);
+    const userResponse = alert.responses?.find(r => r.donorId === userId);
+
+    return (
+      <Card style={styles.notificationCard}>
+        <Card.Content>
+          <View style={styles.notificationHeader}>
+            <Avatar.Icon
+              size={48}
+              icon="water"
+              style={[styles.bloodTypeAvatar, { backgroundColor: getBloodTypeColor(alert.bloodType) }]}
+            />
+            <View style={styles.notificationContent}>
+              <Text variant="titleMedium" style={styles.hospitalName}>
+                {alert.hospitalName}
+              </Text>
+              <Text variant="bodyMedium" style={styles.notificationSubtitle}>
+                Needs {formatBloodType(alert.bloodType)} - {alert.unitsNeeded} units
+              </Text>
+              <Text variant="bodySmall" style={styles.timestamp}>
+                {formatDateTime(alert.createdAt)}
               </Text>
             </View>
+            <View style={styles.notificationMeta}>
+              <Chip
+                mode="outlined"
+                textStyle={[styles.urgencyChip, { color: getUrgencyColor(alert.urgencyLevel) }]}
+                style={[styles.urgencyChipContainer, { borderColor: getUrgencyColor(alert.urgencyLevel) }]}
+              >
+                {alert.urgencyLevel}
+              </Chip>
+              <View style={styles.statusContainer}>
+                <Ionicons
+                  name={getStatusIcon(alert.status)}
+                  size={16}
+                  color={getStatusColor(alert.status)}
+                />
+                <Text style={[styles.statusText, { color: getStatusColor(alert.status) }]}>
+                  {alert.status}
+                </Text>
+              </View>
+            </View>
           </View>
-        </View>
 
-        {alert.message && (
-          <Text variant="bodySmall" style={styles.alertMessage} numberOfLines={2}>
-            "{alert.message}"
-          </Text>
-        )}
-
-        {alert.responses && alert.responses.length > 0 && (
-          <View style={styles.responseStats}>
-            <Text variant="bodySmall" style={styles.responseText}>
-              {alert.responses.filter(r => r.response === 'ACCEPTED').length} accepted • {' '}
-              {alert.responses.filter(r => r.response === 'DECLINED').length} declined • {' '}
-              {alert.notificationsSent || 0} notified
+          {alert.message && (
+            <Text variant="bodySmall" style={styles.alertMessage} numberOfLines={2}>
+              "{alert.message}"
             </Text>
-          </View>
-        )}
-      </Card.Content>
-    </Card>
-  );
+          )}
+
+          {alert.responses && alert.responses.length > 0 && (
+            <View style={styles.responseStats}>
+              <Text variant="bodySmall" style={styles.responseText}>
+                {alert.responses.filter(r => r.response === 'ACCEPTED').length} accepted • {' '}
+                {alert.responses.filter(r => r.response === 'DECLINED').length} declined • {' '}
+                {alert.notificationsSent || 0} notified
+              </Text>
+            </View>
+          )}
+
+          {/* Donor Response Buttons */}
+          {isDonor && alert.status === 'ACTIVE' && (
+            <View style={styles.donorResponseSection}>
+              {hasResponded ? (
+                <View style={styles.responseStatus}>
+                  <Text variant="bodyMedium" style={styles.responseStatusText}>
+                    Your Response: {userResponse?.response || 'NO_RESPONSE'}
+                  </Text>
+                  {userResponse?.response === 'ACCEPTED' && (
+                    <Text variant="bodySmall" style={styles.responseNote}>
+                      Thank you! Staff will contact you soon.
+                    </Text>
+                  )}
+                </View>
+              ) : (
+                <View style={styles.donorResponseButtons}>
+                  <Button
+                    mode="contained"
+                    onPress={() => handleDonorResponse(alert.id, 'ACCEPTED')}
+                    style={[styles.responseButton, { backgroundColor: Colors.success }]}
+                    icon="check"
+                  >
+                    Can Donate
+                  </Button>
+                  <Button
+                    mode="outlined"
+                    onPress={() => handleDonorResponse(alert.id, 'DECLINED')}
+                    style={[styles.responseButton, { borderColor: Colors.error }]}
+                    icon="close"
+                    textColor={Colors.error}
+                  >
+                    Not Available
+                  </Button>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Staff Action Buttons */}
+          {!isDonor && (
+            <View style={styles.staffActionButtons}>
+              <Button
+                mode="outlined"
+                onPress={() => navigation.navigate('EmergencyAlertDetails', { alertId: alert.id })}
+                style={styles.actionButton}
+                icon="eye"
+              >
+                View Details
+              </Button>
+              <Button
+                mode="outlined"
+                onPress={() => handleSendNotification(alert.responses?.[0]?.donorId, alert.id)}
+                style={styles.actionButton}
+                icon="bell"
+                disabled={!alert.responses?.length}
+              >
+                Send FCM
+              </Button>
+            </View>
+          )}
+        </Card.Content>
+      </Card>
+    );
+  };
 
   const EmptyComponent = () => (
     <View style={styles.emptyContainer}>
@@ -192,6 +311,40 @@ const NotificationsScreen = ({ navigation }) => {
 
   return (
     <View style={styles.container}>
+      {/* Header with Navigation */}
+      <View style={styles.headerSection}>
+        <Card style={styles.headerCard}>
+          <Card.Content>
+            <Text variant="titleLarge" style={styles.headerTitle}>
+              Emergency Alerts
+            </Text>
+            <Text variant="bodyMedium" style={styles.headerSubtitle}>
+              Manage and respond to blood emergency requests
+            </Text>
+            
+            <View style={styles.headerButtons}>
+              <Button
+                mode="contained"
+                onPress={() => navigation.navigate('EmergencyAlertCreation')}
+                style={[styles.headerButton, { backgroundColor: Colors.error }]}
+                icon="plus"
+              >
+                Create Alert
+              </Button>
+              
+              <Button
+                mode="outlined"
+                onPress={() => navigation.navigate('DonorManagement')}
+                style={styles.headerButton}
+                icon="account-group"
+              >
+                Manage Donors
+              </Button>
+            </View>
+          </Card.Content>
+        </Card>
+      </View>
+
       {/* Search Bar */}
       <View style={styles.searchContainer}>
         <Searchbar
@@ -243,6 +396,34 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.gray[50],
+  },
+  
+  // Header Section
+  headerSection: {
+    padding: 16,
+    paddingBottom: 8,
+  },
+  headerCard: {
+    backgroundColor: Colors.white,
+    elevation: 2,
+    borderRadius: 12,
+  },
+  headerTitle: {
+    fontWeight: 'bold',
+    color: Colors.primary,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    color: Colors.gray[600],
+    marginBottom: 16,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  headerButton: {
+    flex: 1,
   },
   searchContainer: {
     padding: 16,
@@ -336,6 +517,45 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     color: Colors.gray[500],
     textAlign: 'center',
+  },
+  // Donor Response Styles
+  donorResponseSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: Colors.gray[200],
+  },
+  donorResponseButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  responseButton: {
+    flex: 1,
+  },
+  responseStatus: {
+    alignItems: 'center',
+    padding: 8,
+    backgroundColor: Colors.gray[50],
+    borderRadius: 8,
+  },
+  responseStatusText: {
+    fontWeight: 'bold',
+    color: Colors.primary,
+  },
+  responseNote: {
+    color: Colors.gray[600],
+    marginTop: 4,
+  },
+  // Staff Action Styles
+  staffActionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+    gap: 12,
+  },
+  actionButton: {
+    flex: 1,
   },
 });
 

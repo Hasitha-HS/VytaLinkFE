@@ -25,6 +25,11 @@ export default {
       "expo-notifications"
     ],
     scheme: "vytalink",
-    sdkVersion: "49.0.0"
+    sdkVersion: "49.0.0",
+    extra: {
+      eas: {
+        projectId: "2d4a5939-780d-47c8-a13a-66f9f5fec667"
+      }
+    }
   }
 };

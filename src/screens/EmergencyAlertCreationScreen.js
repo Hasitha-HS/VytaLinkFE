@@ -1,243 +1,228 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, TextInput, Button, Card, Snackbar, Menu } from 'react-native-paper';
-import { Colors } from '../utils/Colors';
-import { toMessageString } from '../utils/Helpers';
+import { View, StyleSheet, ScrollView, Alert } from 'react-native';
+import { Text, Card, Button, TextInput, Menu, Portal, Modal, ActivityIndicator } from 'react-native-paper';
+import { useNavigation } from '@react-navigation/native';
 import EmergencyAlertService from '../services/EmergencyAlertService';
+import { Colors } from '../utils/Colors';
+import Icon from '../components/common/Icon';
+import { getIcon } from '../utils/Icons';
 
-const EmergencyAlertCreationScreen = ({ navigation }) => {
+const EmergencyAlertCreationScreen = () => {
+  const navigation = useNavigation();
+  const [isLoading, setIsLoading] = useState(false);
+  const [showBloodTypeMenu, setShowBloodTypeMenu] = useState(false);
+  const [showUrgencyMenu, setShowUrgencyMenu] = useState(false);
+  
   const [formData, setFormData] = useState({
-    bloodType: 'O_POSITIVE',
+    bloodType: '',
     unitsNeeded: '',
-    urgencyLevel: 'HIGH',
-    hospitalName: '',
+    urgency: '',
+    hospital: '',
     patientName: '',
     message: '',
     requiredBy: ''
   });
-  const [error, setError] = useState('');
-  const [snackbarVisible, setSnackbarVisible] = useState(false);
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [bloodTypeMenuVisible, setBloodTypeMenuVisible] = useState(false);
-  const [urgencyMenuVisible, setUrgencyMenuVisible] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+
+  const bloodTypes = [
+    'O_POSITIVE', 'O_NEGATIVE', 'A_POSITIVE', 'A_NEGATIVE',
+    'B_POSITIVE', 'B_NEGATIVE', 'AB_POSITIVE', 'AB_NEGATIVE'
+  ];
+
+  const urgencyLevels = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => ({ ...prev, [field]: value }));
   };
 
   const validateForm = () => {
-    if (!formData.unitsNeeded || !formData.hospitalName || !formData.patientName || 
-        !formData.message || !formData.requiredBy) {
-      return 'Please fill in all required fields';
+    if (!formData.bloodType || !formData.unitsNeeded || !formData.urgency || 
+        !formData.hospital || !formData.patientName) {
+      Alert.alert('Error', 'Please fill in all required fields');
+      return false;
     }
-    if (isNaN(formData.unitsNeeded) || parseInt(formData.unitsNeeded) < 1) {
-      return 'Units needed must be at least 1';
-    }
-    return null;
+    return true;
   };
 
   const handleCreateAlert = async () => {
-    setError('');
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
-      setSnackbarMessage(validationError);
-      setSnackbarVisible(true);
-      return;
-    }
+    if (!validateForm()) return;
 
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-      
       const alertData = {
-        ...formData,
+        bloodType: formData.bloodType,
         unitsNeeded: parseInt(formData.unitsNeeded),
-        requiredBy: new Date(formData.requiredBy).toISOString()
+        urgencyLevel: formData.urgency,
+        hospitalName: formData.hospital,
+        patientName: formData.patientName,
+        message: formData.message,
+        requiredBy: formData.requiredBy || new Date().toISOString()
       };
 
-      const response = await EmergencyAlertService.createAlert(alertData);
-      
-      if (response.id) {
-        setSnackbarMessage('Emergency alert created successfully!');
-        setSnackbarVisible(true);
-        
-        // Navigate back to home
-        setTimeout(() => {
-          navigation.goBack();
-        }, 2000);
-      } else {
-        setError('Failed to create alert');
-        setSnackbarMessage('Failed to create alert');
-        setSnackbarVisible(true);
-      }
+      await EmergencyAlertService.createAlert(alertData);
+      Alert.alert('Success', 'Emergency alert created successfully!', [
+        { text: 'OK', onPress: () => navigation.goBack() }
+      ]);
     } catch (error) {
-      console.error('Alert creation error:', error);
-      const msg = toMessageString(error.message) || 'Failed to create alert';
-      setError(msg);
-      setSnackbarMessage(msg);
-      setSnackbarVisible(true);
+      console.error('Error creating alert:', error);
+      Alert.alert('Error', 'Failed to create emergency alert. Please try again.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const bloodTypes = [
-    'A_POSITIVE', 'A_NEGATIVE', 'B_POSITIVE', 'B_NEGATIVE',
-    'AB_POSITIVE', 'AB_NEGATIVE', 'O_POSITIVE', 'O_NEGATIVE'
-  ];
-
-  const urgencyLevels = [
-    { value: 'LOW', label: 'Low' },
-    { value: 'MEDIUM', label: 'Medium' },
-    { value: 'HIGH', label: 'High' },
-    { value: 'CRITICAL', label: 'Critical' }
-  ];
-
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.content}>
+    <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
         <Card style={styles.card}>
+          <Card.Title 
+            title="Create Emergency Alert" 
+            left={(props) => <Icon {...getIcon('warning', 24, Colors.primary)} />}
+          />
           <Card.Content>
-            <Text variant="headlineSmall" style={styles.title}>Create Emergency Alert</Text>
-            <Text variant="bodyMedium" style={styles.subtitle}>
-              Create an emergency blood request to notify eligible donors
-            </Text>
-            
-            <View style={styles.dropdownContainer}>
+            {/* Blood Type Selection */}
+            <View style={styles.inputGroup}>
+              <Text variant="bodyMedium" style={styles.label}>Blood Type *</Text>
               <Menu
-                visible={bloodTypeMenuVisible}
-                onDismiss={() => setBloodTypeMenuVisible(false)}
+                visible={showBloodTypeMenu}
+                onDismiss={() => setShowBloodTypeMenu(false)}
                 anchor={
                   <Button
                     mode="outlined"
-                    onPress={() => setBloodTypeMenuVisible(true)}
-                    style={styles.dropdownButton}
+                    onPress={() => setShowBloodTypeMenu(true)}
+                    style={styles.menuButton}
                   >
-                    Blood Type: {formData.bloodType.replace('_', ' ')}
+                    {formData.bloodType || 'Select Blood Type'}
                   </Button>
                 }
               >
-                {bloodTypes.map(bloodType => (
-                  <Menu.Item 
-                    key={bloodType}
-                    onPress={() => { 
-                      handleInputChange('bloodType', bloodType); 
-                      setBloodTypeMenuVisible(false); 
-                    }} 
-                    title={bloodType.replace('_', ' ')} 
+                {bloodTypes.map((type) => (
+                  <Menu.Item
+                    key={type}
+                    onPress={() => {
+                      handleInputChange('bloodType', type);
+                      setShowBloodTypeMenu(false);
+                    }}
+                    title={type.replace('_', ' ')}
                   />
                 ))}
               </Menu>
             </View>
 
-            <TextInput
-              label="Units Needed *"
-              value={formData.unitsNeeded}
-              onChangeText={(value) => handleInputChange('unitsNeeded', value)}
-              style={styles.input}
-              mode="outlined"
-              keyboardType="numeric"
-            />
+            {/* Units Needed */}
+            <View style={styles.inputGroup}>
+              <Text variant="bodyMedium" style={styles.label}>Units Needed *</Text>
+              <TextInput
+                mode="outlined"
+                value={formData.unitsNeeded}
+                onChangeText={(value) => handleInputChange('unitsNeeded', value)}
+                placeholder="Enter number of units"
+                keyboardType="numeric"
+                style={styles.input}
+              />
+            </View>
 
-            <View style={styles.dropdownContainer}>
+            {/* Urgency Level */}
+            <View style={styles.inputGroup}>
+              <Text variant="bodyMedium" style={styles.label}>Urgency Level *</Text>
               <Menu
-                visible={urgencyMenuVisible}
-                onDismiss={() => setUrgencyMenuVisible(false)}
+                visible={showUrgencyMenu}
+                onDismiss={() => setShowUrgencyMenu(false)}
                 anchor={
                   <Button
                     mode="outlined"
-                    onPress={() => setUrgencyMenuVisible(true)}
-                    style={styles.dropdownButton}
+                    onPress={() => setShowUrgencyMenu(true)}
+                    style={styles.menuButton}
                   >
-                    Urgency: {urgencyLevels.find(u => u.value === formData.urgencyLevel)?.label}
+                    {formData.urgency || 'Select Urgency'}
                   </Button>
                 }
               >
-                {urgencyLevels.map(urgency => (
-                  <Menu.Item 
-                    key={urgency.value}
-                    onPress={() => { 
-                      handleInputChange('urgencyLevel', urgency.value); 
-                      setUrgencyMenuVisible(false); 
-                    }} 
-                    title={urgency.label} 
+                {urgencyLevels.map((level) => (
+                  <Menu.Item
+                    key={level}
+                    onPress={() => {
+                      handleInputChange('urgency', level);
+                      setShowUrgencyMenu(false);
+                    }}
+                    title={level}
                   />
                 ))}
               </Menu>
             </View>
 
-            <TextInput
-              label="Hospital Name *"
-              value={formData.hospitalName}
-              onChangeText={(value) => handleInputChange('hospitalName', value)}
-              style={styles.input}
-              mode="outlined"
-            />
+            {/* Hospital */}
+            <View style={styles.inputGroup}>
+              <Text variant="bodyMedium" style={styles.label}>Hospital *</Text>
+              <TextInput
+                mode="outlined"
+                value={formData.hospital}
+                onChangeText={(value) => handleInputChange('hospital', value)}
+                placeholder="Enter hospital name"
+                style={styles.input}
+              />
+            </View>
 
-            <TextInput
-              label="Patient Name *"
-              value={formData.patientName}
-              onChangeText={(value) => handleInputChange('patientName', value)}
-              style={styles.input}
-              mode="outlined"
-            />
+            {/* Patient Name */}
+            <View style={styles.inputGroup}>
+              <Text variant="bodyMedium" style={styles.label}>Patient Name *</Text>
+              <TextInput
+                mode="outlined"
+                value={formData.patientName}
+                onChangeText={(value) => handleInputChange('patientName', value)}
+                placeholder="Enter patient name"
+                style={styles.input}
+              />
+            </View>
 
-            <TextInput
-              label="Message *"
-              value={formData.message}
-              onChangeText={(value) => handleInputChange('message', value)}
-              style={styles.input}
-              mode="outlined"
-              multiline
-              numberOfLines={3}
-            />
+            {/* Message */}
+            <View style={styles.inputGroup}>
+              <Text variant="bodyMedium" style={styles.label}>Message</Text>
+              <TextInput
+                mode="outlined"
+                value={formData.message}
+                onChangeText={(value) => handleInputChange('message', value)}
+                placeholder="Additional details about the emergency"
+                multiline
+                numberOfLines={3}
+                style={styles.input}
+              />
+            </View>
 
-            <TextInput
-              label="Required By (Date & Time) *"
-              value={formData.requiredBy}
-              onChangeText={(value) => handleInputChange('requiredBy', value)}
-              style={styles.input}
-              mode="outlined"
-              placeholder="YYYY-MM-DD HH:MM"
-            />
+            {/* Required By */}
+            <View style={styles.inputGroup}>
+              <Text variant="bodyMedium" style={styles.label}>Required By</Text>
+              <TextInput
+                mode="outlined"
+                value={formData.requiredBy}
+                onChangeText={(value) => handleInputChange('requiredBy', value)}
+                placeholder="YYYY-MM-DD HH:MM (optional)"
+                style={styles.input}
+              />
+            </View>
 
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-            
-            <Button 
-              mode="contained" 
-              onPress={handleCreateAlert} 
-              loading={isLoading} 
-              disabled={!formData.unitsNeeded || !formData.hospitalName || 
-                       !formData.patientName || !formData.message || !formData.requiredBy}
-              style={styles.createButton}
-            >
-              Create Emergency Alert
-            </Button>
-            
-            <Button 
-              mode="text" 
-              onPress={() => navigation.goBack()}
-              style={styles.cancelButton}
-            >
-              Cancel
-            </Button>
+            {/* Action Buttons */}
+            <View style={styles.buttonGroup}>
+              <Button
+                mode="outlined"
+                onPress={() => navigation.goBack()}
+                style={styles.button}
+                disabled={isLoading}
+              >
+                Cancel
+              </Button>
+              <Button
+                mode="contained"
+                onPress={handleCreateAlert}
+                style={[styles.button, styles.primaryButton]}
+                disabled={isLoading}
+              >
+                {isLoading ? <ActivityIndicator size="small" color={Colors.white} /> : 'Create Alert'}
+              </Button>
+            </View>
           </Card.Content>
         </Card>
-      </View>
-      
-      <Snackbar
-        visible={snackbarVisible}
-        onDismiss={() => setSnackbarVisible(false)}
-        duration={3000}
-        style={{ backgroundColor: Colors.gray[800] }}
-      >
-        {snackbarMessage}
-      </Snackbar>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 };
 
@@ -246,46 +231,37 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.gray[50],
   },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
+  scrollContent: {
     padding: 16,
-    minHeight: '100%',
   },
   card: {
-    paddingVertical: 8,
+    elevation: 2,
   },
-  title: {
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
     marginBottom: 8,
-    fontWeight: 'bold',
-    textAlign: 'center',
-  },
-  subtitle: {
-    marginBottom: 24,
-    textAlign: 'center',
-    color: Colors.gray[600],
+    fontWeight: '600',
+    color: Colors.gray[700],
   },
   input: {
-    marginBottom: 12,
+    backgroundColor: Colors.white,
   },
-  dropdownContainer: {
-    marginBottom: 12,
-  },
-  dropdownButton: {
+  menuButton: {
     justifyContent: 'flex-start',
   },
-  error: {
-    color: Colors.error,
-    marginBottom: 12,
-    textAlign: 'center',
+  buttonGroup: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 24,
   },
-  createButton: {
-    marginTop: 8,
-    marginBottom: 16,
-    backgroundColor: Colors.error,
+  button: {
+    flex: 1,
+    marginHorizontal: 8,
   },
-  cancelButton: {
-    marginTop: 8,
+  primaryButton: {
+    backgroundColor: Colors.primary,
   },
 });
 

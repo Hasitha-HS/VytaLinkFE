@@ -21,6 +21,14 @@ import DonorRegistrationScreen from '../screens/DonorRegistrationScreen';
 import DonationHistoryScreen from '../screens/DonationHistoryScreen';
 import EmergencyAlertCreationScreen from '../screens/EmergencyAlertCreationScreen';
 import EmergencyAlertDetailsScreen from '../screens/EmergencyAlertDetailsScreen';
+import DonorManagementScreen from '../screens/DonorManagementScreen';
+import DonorDetailsScreen from '../screens/DonorDetailsScreen';
+import ThankYouScreen from '../screens/ThankYouScreen';
+import CampManagementScreen from '../screens/CampManagementScreen';
+import CampCreationScreen from '../screens/CampCreationScreen';
+import CampReviewScreen from '../screens/CampReviewScreen';
+import CampDetailsScreen from '../screens/CampDetailsScreen';
+import DonationEntryScreen from '../screens/DonationEntryScreen';
 import { Colors } from '../utils/Colors';
 
 const Stack = createStackNavigator();
@@ -212,6 +220,118 @@ const AppNavigator = () => {
             component={EmergencyAlertDetailsScreen}
             options={{ 
               title: 'Alert Details',
+              headerStyle: {
+                backgroundColor: Colors.primary,
+              },
+              headerTintColor: Colors.white,
+              headerTitleStyle: {
+                fontWeight: 'bold',
+              },
+            }}
+          />
+          <Stack.Screen 
+            name="DonorManagement" 
+            component={DonorManagementScreen}
+            options={{ 
+              title: 'Donors Management',
+              headerStyle: {
+                backgroundColor: Colors.primary,
+              },
+              headerTintColor: Colors.white,
+              headerTitleStyle: {
+                fontWeight: 'bold',
+              },
+            }}
+          />
+          <Stack.Screen 
+            name="DonorDetails" 
+            component={DonorDetailsScreen}
+            options={{ 
+              title: 'Donor Details',
+              headerStyle: {
+                backgroundColor: Colors.primary,
+              },
+              headerTintColor: Colors.white,
+              headerTitleStyle: {
+                fontWeight: 'bold',
+              },
+            }}
+          />
+          <Stack.Screen 
+            name="ThankYou" 
+            component={ThankYouScreen}
+            options={{ 
+              title: 'Registration Successful',
+              headerStyle: {
+                backgroundColor: Colors.success,
+              },
+              headerTintColor: Colors.white,
+              headerTitleStyle: {
+                fontWeight: 'bold',
+              },
+            }}
+          />
+          <Stack.Screen 
+            name="CampManagement" 
+            component={CampManagementScreen}
+            options={{ 
+              title: 'Camp Management',
+              headerStyle: {
+                backgroundColor: Colors.primary,
+              },
+              headerTintColor: Colors.white,
+              headerTitleStyle: {
+                fontWeight: 'bold',
+              },
+            }}
+          />
+          <Stack.Screen 
+            name="CampCreation" 
+            component={CampCreationScreen}
+            options={{ 
+              title: 'Create Camp',
+              headerStyle: {
+                backgroundColor: Colors.primary,
+              },
+              headerTintColor: Colors.white,
+              headerTitleStyle: {
+                fontWeight: 'bold',
+              },
+            }}
+          />
+          <Stack.Screen 
+            name="CampReview" 
+            component={CampReviewScreen}
+            options={{ 
+              title: 'Review Camp',
+              headerStyle: {
+                backgroundColor: Colors.primary,
+              },
+              headerTintColor: Colors.white,
+              headerTitleStyle: {
+                fontWeight: 'bold',
+              },
+            }}
+          />
+          <Stack.Screen 
+            name="CampDetails" 
+            component={CampDetailsScreen}
+            options={{ 
+              title: 'Camp Details',
+              headerStyle: {
+                backgroundColor: Colors.primary,
+              },
+              headerTintColor: Colors.white,
+              headerTitleStyle: {
+                fontWeight: 'bold',
+              },
+            }}
+          />
+          <Stack.Screen 
+            name="DonationEntry" 
+            component={DonationEntryScreen}
+            options={{ 
+              title: 'Add Donation',
               headerStyle: {
                 backgroundColor: Colors.primary,
               },

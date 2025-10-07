@@ -16,7 +16,7 @@ class DonorService {
         address: donorData.address || 'Not provided',
         weight: donorData.weight ? parseFloat(donorData.weight) : null
       };
-      return await ApiService.post('/api/donors/register', payload);
+      return await ApiService.post('/donors/register', payload);
     } catch (error) {
       console.error('Error registering donor:', error);
       throw error;
@@ -33,7 +33,7 @@ class DonorService {
       if (filters.size) params.append('size', filters.size);
       
       const queryString = params.toString();
-      const url = queryString ? `/api/donors?${queryString}` : '/api/donors';
+      const url = queryString ? `/donors?${queryString}` : '/donors';
       return await ApiService.get(url);
     } catch (error) {
       console.error('Error fetching all donors:', error);
@@ -44,7 +44,7 @@ class DonorService {
   // Get donor by ID
   async getDonorById(donorId) {
     try {
-      return await ApiService.get(`/api/donors/${donorId}`);
+      return await ApiService.get(`/donors/${donorId}`);
     } catch (error) {
       console.error('Error fetching donor by ID:', error);
       throw error;
@@ -54,7 +54,7 @@ class DonorService {
   // Get donor by phone number
   async getDonorByPhone(phoneNumber) {
     try {
-      return await ApiService.get(`/api/donors/phone/${phoneNumber}`);
+      return await ApiService.get(`/donors/phone/${phoneNumber}`);
     } catch (error) {
       console.error('Error fetching donor by phone:', error);
       throw error;
@@ -64,7 +64,7 @@ class DonorService {
   // Get donor by user ID
   async getDonorByUserId(userId) {
     try {
-      return await ApiService.get(`/api/donors/user/${userId}`);
+      return await ApiService.get(`/donors/user/${userId}`);
     } catch (error) {
       console.error('Error fetching donor by user ID:', error);
       throw error;
@@ -95,7 +95,7 @@ class DonorService {
         address: updateData.address,
         weight: updateData.weight ? parseFloat(updateData.weight) : null
       };
-      return await ApiService.put(`/api/donors/${donorId}`, payload);
+      return await ApiService.put(`/donors/${donorId}`, payload);
     } catch (error) {
       console.error('Error updating donor profile:', error);
       throw error;
@@ -129,16 +129,74 @@ class DonorService {
   // Search donors by criteria
   async searchDonors(criteria) {
     try {
-      const params = {
-        bloodType: criteria.bloodType,
-        location: criteria.location,
-        eligibilityStatus: criteria.eligibilityStatus
-      };
-      // Note: This endpoint might not exist in your current API
-      // You may need to add it to your Spring Boot backend
-      return await ApiService.get('/donors/search', params);
+      const params = new URLSearchParams();
+      if (criteria.query) params.append('q', criteria.query);
+      if (criteria.bloodType) params.append('bloodType', criteria.bloodType);
+      if (criteria.eligibilityStatus) params.append('eligibilityStatus', criteria.eligibilityStatus);
+      if (criteria.page) params.append('page', criteria.page);
+      if (criteria.size) params.append('size', criteria.size);
+      
+      const queryString = params.toString();
+      const url = queryString ? `/donors/search?${queryString}` : '/donors/search';
+      return await ApiService.get(url);
     } catch (error) {
       console.error('Error searching donors:', error);
+      throw error;
+    }
+  }
+
+  // Get donor contact information
+  async getDonorContact(donorId) {
+    try {
+      return await ApiService.get(`/donors/${donorId}/contact`);
+    } catch (error) {
+      console.error('Error fetching donor contact:', error);
+      throw error;
+    }
+  }
+
+  // Send FCM notification to donor
+  async sendMessageToDonor(donorId, message, type, alertId = null) {
+    try {
+      const payload = { message, type };
+      if (alertId) payload.alertId = alertId;
+      
+      return await ApiService.post(`/donors/${donorId}/message`, payload);
+    } catch (error) {
+      console.error('Error sending FCM notification to donor:', error);
+      throw error;
+    }
+  }
+
+  // Get donor donation history (updated method)
+  async getDonorDonations(donorId, page = 0, size = 10) {
+    try {
+      return await ApiService.get(`/donors/${donorId}/donations?page=${page}&size=${size}`);
+    } catch (error) {
+      console.error('Error fetching donor donations:', error);
+      throw error;
+    }
+  }
+
+  // Check donor eligibility for specific alert
+  async checkDonorEligibilityForAlert(donorId, alertId) {
+    try {
+      return await ApiService.get(`/donors/${donorId}/eligibility/${alertId}`);
+    } catch (error) {
+      console.error('Error checking donor eligibility for alert:', error);
+      throw error;
+    }
+  }
+
+  // Update donor status
+  async updateDonorStatus(donorId, status, reason) {
+    try {
+      return await ApiService.put(`/donors/${donorId}/status`, {
+        eligibilityStatus: status,
+        reason: reason
+      });
+    } catch (error) {
+      console.error('Error updating donor status:', error);
       throw error;
     }
   }

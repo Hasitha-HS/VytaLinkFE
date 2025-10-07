@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, TextInput, Button, Card, Snackbar, Menu, Divider } from 'react-native-paper';
+import { Text, TextInput, Button, Card, Snackbar } from 'react-native-paper';
 import { AuthContext } from '../context/AuthContext';
 import { Colors } from '../utils/Colors';
 import { toMessageString } from '../utils/Helpers';
@@ -12,13 +12,11 @@ const RegisterScreen = ({ navigation }) => {
     email: '',
     password: '',
     confirmPassword: '',
-    role: 'USER',
     bloodBankId: null
   });
   const [error, setError] = useState('');
   const [snackbarVisible, setSnackbarVisible] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [roleMenuVisible, setRoleMenuVisible] = useState(false);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -93,6 +91,9 @@ const RegisterScreen = ({ navigation }) => {
         <Card style={styles.card}>
           <Card.Content>
             <Text variant="headlineSmall" style={styles.title}>Create Account</Text>
+            <Text variant="bodyMedium" style={styles.subtitle}>
+              You'll be registered as a regular user. You can upgrade to a donor later.
+            </Text>
             
             
             <TextInput
@@ -113,25 +114,6 @@ const RegisterScreen = ({ navigation }) => {
               autoCapitalize="none"
             />
             
-            <View style={styles.dropdownContainer}>
-              <Menu
-                visible={roleMenuVisible}
-                onDismiss={() => setRoleMenuVisible(false)}
-                anchor={
-                  <Button
-                    mode="outlined"
-                    onPress={() => setRoleMenuVisible(true)}
-                    style={styles.dropdownButton}
-                  >
-                    Role: {formData.role}
-                  </Button>
-                }
-              >
-                <Menu.Item onPress={() => { handleInputChange('role', 'USER'); setRoleMenuVisible(false); }} title="User" />
-                <Menu.Item onPress={() => { handleInputChange('role', 'ADMIN'); setRoleMenuVisible(false); }} title="Admin" />
-                <Menu.Item onPress={() => { handleInputChange('role', 'BLOOD_BANK'); setRoleMenuVisible(false); }} title="Blood Bank" />
-              </Menu>
-            </View>
             
             <TextInput
               label="Password *"
@@ -236,12 +218,6 @@ const styles = StyleSheet.create({
   },
   backButton: {
     marginTop: 8,
-  },
-  dropdownContainer: {
-    marginBottom: 12,
-  },
-  dropdownButton: {
-    justifyContent: 'flex-start',
   },
 });
 

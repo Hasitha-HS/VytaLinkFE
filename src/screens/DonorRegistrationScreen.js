@@ -85,9 +85,15 @@ const DonorRegistrationScreen = ({ navigation }) => {
         setSnackbarMessage('Successfully registered as a donor!');
         setSnackbarVisible(true);
         
-        // Navigate back to profile
+        // Navigate to thank you screen
         setTimeout(() => {
-          navigation.goBack();
+          navigation.navigate('ThankYou', { 
+            donorData: {
+              name: `${formData.firstName} ${formData.lastName}`,
+              bloodType: formData.bloodType,
+              phone: formData.phoneNumber
+            }
+          });
         }, 2000);
       } else {
         setError('Donor registration failed');
