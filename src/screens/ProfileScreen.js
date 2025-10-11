@@ -49,15 +49,13 @@ const ProfileScreen = ({ navigation }) => {
         const profileData = await AuthService.getProfile();
         setUserProfile(profileData);
         
-        // Try to fetch donor profile if user is a donor
-        if (profileData.role === 'DONOR' || user.role === 'DONOR') {
-          try {
-            const donorData = await DonorService.getDonorByUserId(user.id);
-            setDonorProfile(donorData);
-          } catch (donorError) {
-            console.log('No donor profile found:', donorError);
-            setDonorProfile(null);
-          }
+        // Try to fetch donor profile by email (more reliable for hiding donor actions)
+        try {
+          const donorData = await DonorService.getDonorByEmail(profileData.email || user.email);
+          setDonorProfile(donorData);
+        } catch (donorError) {
+          console.log('No donor profile found:', donorError);
+          setDonorProfile(null);
         }
       } catch (error) {
         console.error('Error fetching profile data:', error);
@@ -82,9 +80,11 @@ const ProfileScreen = ({ navigation }) => {
           onPress: async () => {
             try {
               await AuthService.logout();
-              logout();
             } catch (error) {
               console.error('Logout error:', error);
+            } finally {
+              // Ensure local logout even if API call fails
+              logout();
             }
           }
         }
@@ -160,7 +160,7 @@ const ProfileScreen = ({ navigation }) => {
 
   // Use userProfile if available, otherwise fall back to user
   const displayUser = userProfile || user;
-  const isDonor = donorProfile || displayUser.role === 'DONOR';
+  const isDonor = !!donorProfile || displayUser.role === 'DONOR';
 
   return (
     <View style={styles.container}>

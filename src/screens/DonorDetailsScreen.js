@@ -72,7 +72,7 @@ const DonorDetailsScreen = () => {
   };
 
   const handleEditDonor = () => {
-    Alert.alert('Edit Donor', 'Edit functionality coming soon');
+    navigation.navigate('DonorEdit', { donorId });
   };
 
   const handleCallDonor = () => {
@@ -81,8 +81,15 @@ const DonorDetailsScreen = () => {
     }
   };
 
-  const handleSendMessage = () => {
-    Alert.alert('Send Message', 'Message functionality coming soon');
+  const handleToggleEligibility = async () => {
+    try {
+      const next = donor.eligibilityStatus === 'ELIGIBLE' ? 'TEMPORARILY_DEFERRED' : 'ELIGIBLE';
+      await DonorService.updateDonorStatus(donor.id, next, 'Toggled by admin');
+      setDonor({ ...donor, eligibilityStatus: next });
+      Alert.alert('Success', `Status set to ${next}`);
+    } catch (e) {
+      Alert.alert('Error', e?.message || 'Failed to update status');
+    }
   };
 
   if (isLoading) {
@@ -258,20 +265,20 @@ const DonorDetailsScreen = () => {
           </Button>
           <Button
             mode="outlined"
+            onPress={handleToggleEligibility}
+            style={styles.actionButton}
+            icon="shield-check"
+          >
+            {donor.eligibilityStatus === 'ELIGIBLE' ? 'Set Deferred' : 'Set Eligible'}
+          </Button>
+          <Button
+            mode="outlined"
             onPress={handleCallDonor}
             style={styles.actionButton}
             icon="phone"
             disabled={!donor.phone}
           >
             Call
-          </Button>
-          <Button
-            mode="contained"
-            onPress={handleSendMessage}
-            style={[styles.actionButton, styles.primaryButton]}
-            icon="message"
-          >
-            Send Message
           </Button>
         </View>
       </ScrollView>

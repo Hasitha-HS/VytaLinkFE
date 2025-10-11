@@ -93,8 +93,7 @@ const DonorManagementScreen = () => {
   };
 
   const handleEditDonor = (donorId) => {
-    // Navigate to edit donor screen (to be implemented)
-    Alert.alert('Edit Donor', 'Edit functionality coming soon');
+    navigation.navigate('DonorEdit', { donorId });
   };
 
   const handleCallDonor = (phone) => {

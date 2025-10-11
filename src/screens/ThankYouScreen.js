@@ -12,10 +12,11 @@ const ThankYouScreen = () => {
   const { donorData } = route.params || {};
 
   const handleDone = () => {
-    // Navigate to home or login screen
+    // After successful donor registration, send user to main app tabs
+    // Using reset ensures a clean stack and works consistently on web and native
     navigation.reset({
       index: 0,
-      routes: [{ name: 'Auth' }],
+      routes: [{ name: 'MainTabs' }],
     });
   };
 

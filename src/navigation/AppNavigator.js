@@ -23,6 +23,7 @@ import EmergencyAlertCreationScreen from '../screens/EmergencyAlertCreationScree
 import EmergencyAlertDetailsScreen from '../screens/EmergencyAlertDetailsScreen';
 import DonorManagementScreen from '../screens/DonorManagementScreen';
 import DonorDetailsScreen from '../screens/DonorDetailsScreen';
+import DonorEditScreen from '../screens/DonorEditScreen';
 import ThankYouScreen from '../screens/ThankYouScreen';
 import CampManagementScreen from '../screens/CampManagementScreen';
 import CampCreationScreen from '../screens/CampCreationScreen';
@@ -248,6 +249,20 @@ const AppNavigator = () => {
             component={DonorDetailsScreen}
             options={{ 
               title: 'Donor Details',
+              headerStyle: {
+                backgroundColor: Colors.primary,
+              },
+              headerTintColor: Colors.white,
+              headerTitleStyle: {
+                fontWeight: 'bold',
+              },
+            }}
+          />
+          <Stack.Screen 
+            name="DonorEdit" 
+            component={DonorEditScreen}
+            options={{ 
+              title: 'Edit Donor',
               headerStyle: {
                 backgroundColor: Colors.primary,
               },

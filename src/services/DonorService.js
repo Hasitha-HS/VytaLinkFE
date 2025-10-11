@@ -71,6 +71,16 @@ class DonorService {
     }
   }
 
+  // Get donor by email
+  async getDonorByEmail(email) {
+    try {
+      return await ApiService.get(`/donors/email/${encodeURIComponent(email)}`);
+    } catch (error) {
+      console.error('Error fetching donor by email:', error);
+      throw error;
+    }
+  }
+
   // Update donor FCM token
   async updateFcmToken(donorId, fcmToken) {
     try {
@@ -85,16 +95,15 @@ class DonorService {
   // Update donor profile
   async updateDonorProfile(donorId, updateData) {
     try {
-      const payload = {
-        name: updateData.name,
-        age: updateData.age ? parseInt(updateData.age) : null,
-        gender: updateData.gender,
-        bloodType: updateData.bloodType,
-        phone: updateData.phone,
-        email: updateData.email,
-        address: updateData.address,
-        weight: updateData.weight ? parseFloat(updateData.weight) : null
-      };
+      const payload = {};
+      if (updateData.name !== undefined) payload.name = updateData.name;
+      if (updateData.age !== undefined) payload.age = parseInt(updateData.age);
+      if (updateData.gender !== undefined) payload.gender = updateData.gender;
+      if (updateData.bloodType !== undefined) payload.bloodType = updateData.bloodType;
+      if (updateData.phone !== undefined) payload.phone = updateData.phone;
+      if (updateData.email !== undefined) payload.email = updateData.email;
+      if (updateData.address !== undefined) payload.address = updateData.address;
+      if (updateData.weight !== undefined) payload.weight = parseFloat(updateData.weight);
       return await ApiService.put(`/donors/${donorId}`, payload);
     } catch (error) {
       console.error('Error updating donor profile:', error);
@@ -193,7 +202,7 @@ class DonorService {
     try {
       return await ApiService.put(`/donors/${donorId}/status`, {
         eligibilityStatus: status,
-        reason: reason
+        reason
       });
     } catch (error) {
       console.error('Error updating donor status:', error);
