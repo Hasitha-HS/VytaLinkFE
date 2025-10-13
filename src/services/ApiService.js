@@ -58,8 +58,9 @@ class ApiService {
   // GET request
   async get(endpoint, params = {}) {
     try {
-      console.log('ApiService.get called with endpoint:', endpoint, 'params:', params);
-      const response = await this.api.get(endpoint, { params });
+      const fullEndpoint = `/api${endpoint}`;
+      console.log('ApiService.get called with endpoint:', fullEndpoint, 'params:', params);
+      const response = await this.api.get(fullEndpoint, { params });
       console.log('ApiService.get response:', response.data);
       return response.data;
     } catch (error) {
@@ -71,7 +72,8 @@ class ApiService {
   // POST request
   async post(endpoint, data = {}, config = {}) {
     try {
-      const response = await this.api.post(endpoint, data, config);
+      const fullEndpoint = `/api${endpoint}`;
+      const response = await this.api.post(fullEndpoint, data, config);
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -81,7 +83,8 @@ class ApiService {
   // PUT request
   async put(endpoint, data = {}, config = {}) {
     try {
-      const response = await this.api.put(endpoint, data, config);
+      const fullEndpoint = `/api${endpoint}`;
+      const response = await this.api.put(fullEndpoint, data, config);
       return response.data;
     } catch (error) {
       throw this.handleError(error);
@@ -91,7 +94,8 @@ class ApiService {
   // DELETE request
   async delete(endpoint, config = {}) {
     try {
-      const response = await this.api.delete(endpoint, config);
+      const fullEndpoint = `/api${endpoint}`;
+      const response = await this.api.delete(fullEndpoint, config);
       return response.data;
     } catch (error) {
       throw this.handleError(error);

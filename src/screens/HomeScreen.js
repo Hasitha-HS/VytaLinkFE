@@ -95,14 +95,32 @@ const HomeScreen = ({ navigation }) => {
   };
 
   const handleEmergencyResponse = async (alertId, response) => {
+    // Check if user is authenticated
+    if (!user) {
+      showSnackbar('Please log in to respond to emergency alerts');
+      // Navigate to login screen
+      navigation.navigate('Login');
+      return;
+    }
+
     try {
-      await EmergencyAlertService.respondToAlert(alertId, user.donorId || user.id, response);
+      // For now, we'll use the user ID as donor ID
+      // In a real system, you'd need to check if user has a donor record
+      await EmergencyAlertService.respondToAlert(alertId, user.id, response);
       showSnackbar(`Response "${response}" submitted successfully!`);
       await refreshAlerts();
     } catch (error) {
       console.error('Error responding to alert:', error);
-      const msg = error?.message || 'Error submitting response. Please try again.';
-      showSnackbar(msg);
+      
+      // Check if the error is about donor not found
+      if (error?.message?.includes('Donor not found')) {
+        showSnackbar('You need to register as a donor first. Please contact support or register as a donor.');
+        // You could navigate to a donor registration screen here
+        // navigation.navigate('DonorRegistration');
+      } else {
+        const msg = error?.message || 'Error submitting response. Please try again.';
+        showSnackbar(msg);
+      }
     }
   };
 
@@ -302,42 +320,60 @@ const HomeScreen = ({ navigation }) => {
           </Card>
         </View>
 
-        {/* Critical Emergencies Section */}
-        <View style={styles.alertsSection}>
-          <View style={styles.sectionHeader}>
-            <Icon {...getIcon('warning', 24, Colors.error)} />
-            <Text variant="titleMedium" style={styles.sectionTitle}>
-              Critical Emergencies
-            </Text>
-            {activeAlerts.length > 0 && (
-              <View style={styles.badge}>
-                <Text style={styles.badgeText}>{activeAlerts.length}</Text>
-              </View>
+        {/* Critical Emergencies Section - Only show for registered donors */}
+        {user && user.bloodType && (
+          <View style={styles.alertsSection}>
+            <View style={styles.sectionHeader}>
+              <Icon {...getIcon('warning', 24, Colors.error)} />
+              <Text variant="titleMedium" style={styles.sectionTitle}>
+                Critical Emergencies
+              </Text>
+              {activeAlerts.length > 0 && (
+                <View style={styles.badge}>
+                  <Text style={styles.badgeText}>{activeAlerts.length}</Text>
+                </View>
+              )}
+            </View>
+
+            {activeAlerts.length > 0 ? (
+              activeAlerts.map((alert) => (
+                <AlertCard
+                  key={alert.id}
+                  alert={alert}
+                  onRespond={handleEmergencyResponse}
+                  currentUser={user}
+                />
+              ))
+            ) : (
+              <Card style={styles.noAlertsCard}>
+                <Card.Content>
+                  <View style={styles.noAlertsContent}>
+                    <Icon {...getIcon('checkmark-circle', 32, Colors.success)} />
+                    <Text variant="bodyMedium" style={styles.noAlertsText}>
+                      No critical emergencies requiring your attention at this time.
+                    </Text>
+                  </View>
+                </Card.Content>
+              </Card>
             )}
           </View>
+        )}
 
-          {activeAlerts.length > 0 ? (
-            activeAlerts.map((alert) => (
-              <AlertCard
-                key={alert.id}
-                alert={alert}
-                onRespond={handleEmergencyResponse}
-                currentUser={user}
-              />
-            ))
-          ) : (
+        {/* Show message for non-donors */}
+        {user && !user.bloodType && (
+          <View style={styles.alertsSection}>
             <Card style={styles.noAlertsCard}>
               <Card.Content>
                 <View style={styles.noAlertsContent}>
-                  <Icon {...getIcon('checkmark-circle', 32, Colors.success)} />
+                  <Icon {...getIcon('information', 32, Colors.primary)} />
                   <Text variant="bodyMedium" style={styles.noAlertsText}>
-                    No critical emergencies requiring your attention at this time.
+                    Register as a donor to receive emergency blood donation alerts.
                   </Text>
                 </View>
               </Card.Content>
             </Card>
-          )}
-        </View>
+          </View>
+        )}
 
         {/* Navigation Panel */}
         <View style={styles.navigationSection}>

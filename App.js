@@ -15,12 +15,20 @@ export default function App() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
 
   useEffect(() => {
+    console.log('🚀 App component mounted!');
     const loadAppFonts = async () => {
       try {
-        await loadFonts();
+        console.log('🎨 Loading fonts...');
+        // Add timeout to font loading
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Font loading timeout')), 2000)
+        );
+        
+        await Promise.race([loadFonts(), timeoutPromise]);
+        console.log('✅ Fonts loaded successfully');
         setFontsLoaded(true);
       } catch (error) {
-        console.error('Font loading error:', error);
+        console.error('⚠️ Font loading error:', error);
         setFontsLoaded(true); // Continue anyway
       }
     };
@@ -38,6 +46,7 @@ export default function App() {
   }
 
   try {
+    console.log('🎯 Rendering main app...');
     return (
       <PaperProvider theme={theme}>
         <AuthProvider>
@@ -53,10 +62,11 @@ export default function App() {
       </PaperProvider>
     );
   } catch (error) {
-    console.error('App error:', error);
+    console.error('💥 App error:', error);
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f0f0' }}>
         <Text style={{ fontSize: 18, color: 'red' }}>App Error: {error.message}</Text>
+        <Text style={{ fontSize: 14, color: '#666', marginTop: 10 }}>Check console for details</Text>
       </View>
     );
   }

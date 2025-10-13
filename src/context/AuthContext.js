@@ -26,36 +26,64 @@ export const AuthProvider = ({ children }) => {
 
   const checkAuthState = async () => {
     try {
-      console.log('Checking auth state...');
+      console.log('🔍 Checking auth state...');
       setIsLoading(true);
-      
-      // Check if user is logged in
-      const isLoggedIn = await AuthService.isLoggedIn();
-      console.log('Is logged in:', isLoggedIn);
-      
-      if (isLoggedIn) {
-        // Get stored user data
-        const userData = await AuthService.getCurrentUser();
-        console.log('User data:', userData);
-        
-        if (userData) {
-          setUser(userData);
-          
-          // Initialize notifications
-          try {
-            await initializeNotifications(userData.id);
-          } catch (notifError) {
-            console.warn('Notification initialization failed:', notifError);
-            // Don't fail the entire auth check if notifications fail
+
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Auth check timeout')), 3000)
+      );
+
+      const authCheckPromise = async () => {
+        console.log('📱 Checking if user is logged in...');
+        // Check if user is logged in
+        const isLoggedIn = await AuthService.isLoggedIn();
+        console.log('✅ Is logged in:', isLoggedIn);
+
+        if (isLoggedIn) {
+          console.log('👤 Getting stored user data...');
+          // Get stored user data
+          let userData = await AuthService.getCurrentUser();
+          console.log('📋 User data:', userData);
+
+          if (userData) {
+            // Try to fetch donor information
+            try {
+              console.log('🩸 Checking for donor information...');
+              const donorData = await DonorService.getDonorByEmail(userData.email);
+              userData = { ...userData, ...donorData };
+              console.log('✅ Donor information loaded for user:', userData.name);
+            } catch (error) {
+              console.log('ℹ️ User is not a registered donor:', error.message);
+              // User is not a donor, keep original user data
+            }
+
+            console.log('🎉 Setting user data');
+            setUser(userData);
+
+            // Initialize notifications
+            try {
+              console.log('🔔 Initializing notifications...');
+              await initializeNotifications(userData.id);
+            } catch (notifError) {
+              console.warn('⚠️ Notification initialization failed:', notifError);
+              // Don't fail the entire auth check if notifications fail
+            }
+          } else {
+            console.log('❌ No user data found');
           }
+        } else {
+          console.log('🚫 User not logged in');
         }
-      }
+      };
+
+      await Promise.race([authCheckPromise(), timeoutPromise]);
     } catch (error) {
-      console.error('Error checking auth state:', error);
+      console.error('💥 Error checking auth state:', error);
       // Set user to null on error
       setUser(null);
     } finally {
-      console.log('Setting isLoading to false');
+      console.log('🏁 Setting isLoading to false');
       setIsLoading(false);
     }
   };
@@ -86,17 +114,17 @@ export const AuthProvider = ({ children }) => {
       const response = await AuthService.login(username, password);
       
       if (response.token) {
-        // For donor login, we might need to fetch additional donor data
+        // Try to fetch donor information for any user
         let userData = response;
         
-        if (response.role === 'DONOR') {
-          try {
-            // Try to get donor details by phone or ID
-            const donorData = await DonorService.getDonorById(response.id);
-            userData = { ...response, ...donorData };
-          } catch (error) {
-            console.log('Could not fetch donor details:', error);
-          }
+        try {
+          // Try to get donor details by email
+          const donorData = await DonorService.getDonorByEmail(response.email);
+          userData = { ...response, ...donorData };
+          console.log('✅ Donor information loaded for user:', userData.name);
+        } catch (error) {
+          console.log('ℹ️ User is not a registered donor:', error.message);
+          // User is not a donor, keep original user data
         }
         
         setUser(userData);

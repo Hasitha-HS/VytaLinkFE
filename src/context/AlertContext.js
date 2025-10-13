@@ -26,11 +26,10 @@ export const AlertProvider = ({ children }) => {
       pollTimerRef.current = null;
     }
 
-    // Only load and start polling when user is authenticated
-    if (user) {
-      loadAlerts();
-      pollTimerRef.current = setInterval(loadAlerts, 60000); // poll every 60s
-    }
+    // Load alerts for both authenticated and unauthenticated users
+    // Emergency alerts are critical and should be visible to everyone
+    loadAlerts();
+    pollTimerRef.current = setInterval(loadAlerts, 60000); // poll every 60s
 
     return () => {
       if (pollTimerRef.current) {
@@ -44,20 +43,86 @@ export const AlertProvider = ({ children }) => {
     try {
       console.log('Loading alerts...');
       setIsLoading(true);
-      const response = await EmergencyAlertService.getActiveAlerts();
-      console.log('Alerts response:', response);
-      setAlerts(Array.isArray(response) ? response : []);
-    } catch (error) {
-      // Suppress noisy unauthorized errors during background polling
-      if (error?.status === 401) {
-        console.log('Unauthorized error, skipping alert loading');
+      
+      // Only load alerts if user is authenticated and has donor information
+      if (!user) {
+        console.log('No user logged in, skipping alert loading');
+        setAlerts([]);
         return;
       }
+
+      // Check if user has donor information (blood type)
+      if (!user.bloodType) {
+        console.log('User is not a registered donor, skipping alert loading');
+        setAlerts([]);
+        return;
+      }
+
+      const response = await EmergencyAlertService.getActiveAlerts();
+      console.log('Alerts response:', response);
+      
+      // Filter alerts by user's blood type
+      const userBloodType = user.bloodType;
+      const filteredAlerts = Array.isArray(response) 
+        ? response.filter(alert => {
+            // Check if alert blood type matches user's blood type
+            // or if user's blood type is compatible (O- can donate to anyone, etc.)
+            return isBloodTypeCompatible(userBloodType, alert.bloodType);
+          })
+        : [];
+      
+      console.log(`Filtered ${filteredAlerts.length} alerts for blood type ${userBloodType}`);
+      setAlerts(filteredAlerts);
+    } catch (error) {
       console.error('Error loading alerts:', error);
       // Don't clear alerts on error, keep existing ones
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Helper function to check blood type compatibility
+  const isBloodTypeCompatible = (donorBloodType, requiredBloodType) => {
+    // O- can donate to anyone
+    if (donorBloodType === 'O_NEGATIVE') return true;
+    
+    // O+ can donate to O+ and AB+
+    if (donorBloodType === 'O_POSITIVE') {
+      return requiredBloodType === 'O_POSITIVE' || requiredBloodType === 'AB_POSITIVE';
+    }
+    
+    // A- can donate to A-, A+, AB-, AB+
+    if (donorBloodType === 'A_NEGATIVE') {
+      return requiredBloodType.includes('A') || requiredBloodType.includes('AB');
+    }
+    
+    // A+ can donate to A+ and AB+
+    if (donorBloodType === 'A_POSITIVE') {
+      return requiredBloodType === 'A_POSITIVE' || requiredBloodType === 'AB_POSITIVE';
+    }
+    
+    // B- can donate to B-, B+, AB-, AB+
+    if (donorBloodType === 'B_NEGATIVE') {
+      return requiredBloodType.includes('B') || requiredBloodType.includes('AB');
+    }
+    
+    // B+ can donate to B+ and AB+
+    if (donorBloodType === 'B_POSITIVE') {
+      return requiredBloodType === 'B_POSITIVE' || requiredBloodType === 'AB_POSITIVE';
+    }
+    
+    // AB- can donate to AB- and AB+
+    if (donorBloodType === 'AB_NEGATIVE') {
+      return requiredBloodType.includes('AB');
+    }
+    
+    // AB+ can only donate to AB+
+    if (donorBloodType === 'AB_POSITIVE') {
+      return requiredBloodType === 'AB_POSITIVE';
+    }
+    
+    // Exact match fallback
+    return donorBloodType === requiredBloodType;
   };
 
   const refreshAlerts = async () => {

@@ -133,26 +133,36 @@ const AlertCard = ({ alert, onRespond, currentUser }) => {
           </View>
         ) : (
           <View style={styles.actionButtons}>
-            <Button
-              mode="contained"
-              onPress={handleAccept}
-              style={[styles.actionButton, styles.acceptButton]}
-              buttonColor={Colors.success}
-              icon="check"
-              compact
-            >
-              I Can Donate
-            </Button>
-            <Button
-              mode="outlined"
-              onPress={handleDecline}
-              style={[styles.actionButton, styles.declineButton]}
-              textColor={Colors.error}
-              icon="close"
-              compact
-            >
-              Not Available
-            </Button>
+            {currentUser ? (
+              <>
+                <Button
+                  mode="contained"
+                  onPress={handleAccept}
+                  style={[styles.actionButton, styles.acceptButton]}
+                  buttonColor={Colors.success}
+                  icon="check"
+                  compact
+                >
+                  I Can Donate
+                </Button>
+                <Button
+                  mode="outlined"
+                  onPress={handleDecline}
+                  style={[styles.actionButton, styles.declineButton]}
+                  textColor={Colors.error}
+                  icon="close"
+                  compact
+                >
+                  Not Available
+                </Button>
+              </>
+            ) : (
+              <View style={styles.loginPrompt}>
+                <Text variant="bodyMedium" style={styles.loginPromptText}>
+                  Please log in to respond to this emergency alert
+                </Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -274,6 +284,17 @@ const styles = StyleSheet.create({
   statsText: {
     color: Colors.gray[500],
     fontSize: 11,
+  },
+  loginPrompt: {
+    padding: 12,
+    backgroundColor: Colors.gray[50],
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  loginPromptText: {
+    color: Colors.gray[600],
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
 });
 

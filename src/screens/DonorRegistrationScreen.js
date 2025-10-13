@@ -102,9 +102,27 @@ const DonorRegistrationScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Donor registration error:', error);
-      const msg = toMessageString(error.message) || 'Donor registration failed';
-      setError(msg);
-      setSnackbarMessage(msg);
+      
+      // Handle specific error cases with cleaner messages
+      let errorMessage = 'Donor registration failed. Please try again.';
+      
+      if (error.message) {
+        if (error.message.includes('phone number already exists')) {
+          errorMessage = 'A donor with this phone number is already registered. Please use a different phone number.';
+        } else if (error.message.includes('email address already exists')) {
+          errorMessage = 'A donor with this email address is already registered. Please use a different email.';
+        } else if (error.message.includes('Full authentication is required')) {
+          errorMessage = 'Registration failed. Please try again.';
+        } else if (error.message.includes('Validation failed')) {
+          errorMessage = 'Please check your information and try again.';
+        } else {
+          // Use the original error message if it's clear and helpful
+          errorMessage = error.message;
+        }
+      }
+      
+      setError(errorMessage);
+      setSnackbarMessage(errorMessage);
       setSnackbarVisible(true);
     } finally {
       setIsLoading(false);
