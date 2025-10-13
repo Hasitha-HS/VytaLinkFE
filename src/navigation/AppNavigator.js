@@ -29,11 +29,35 @@ import CampManagementScreen from '../screens/CampManagementScreen';
 import CampCreationScreen from '../screens/CampCreationScreen';
 import CampReviewScreen from '../screens/CampReviewScreen';
 import CampDetailsScreen from '../screens/CampDetailsScreen';
+import AdminCampReviewScreen from '../screens/AdminCampReviewScreen';
 import DonationEntryScreen from '../screens/DonationEntryScreen';
+import NewsManagementScreen from '../screens/NewsManagementScreen';
+import NewsCreationScreen from '../screens/NewsCreationScreen';
+import NewsDetailScreen from '../screens/NewsDetailScreen';
 import { Colors } from '../utils/Colors';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
+
+// Helper function for consistent header options
+const getHeaderOptions = (title) => ({
+  title,
+  headerStyle: {
+    backgroundColor: Colors.primary,
+    borderBottomLeftRadius: 8, // Curve bottom left edge
+    borderBottomRightRadius: 8, // Curve bottom right edge
+  },
+  headerTintColor: Colors.white,
+  headerTitleStyle: {
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  headerTitleAlign: 'center',
+  headerBackTitleVisible: false,
+  headerBackImage: () => (
+    <Ionicons name="chevron-back" size={24} color={Colors.white} />
+  ),
+});
 
 // Bottom Tab Navigator
 const TabNavigator = () => {
@@ -98,14 +122,16 @@ const TabNavigator = () => {
         },
         headerStyle: {
           backgroundColor: Colors.primary,
-          elevation: 0,
-          shadowOpacity: 0,
+          borderBottomLeftRadius: 8, // Curve bottom left edge
+          borderBottomRightRadius: 8, // Curve bottom right edge
         },
         headerTintColor: Colors.white,
         headerTitleStyle: {
           fontWeight: 'bold',
           fontSize: 18,
+          textAlign: 'center',
         },
+        headerTitleAlign: 'center',
       })}
     >
       <Tab.Screen 
@@ -163,7 +189,13 @@ const AppNavigator = () => {
         headerTintColor: Colors.white,
         headerTitleStyle: {
           fontWeight: 'bold',
+          textAlign: 'center',
         },
+        headerTitleAlign: 'center',
+        headerBackTitleVisible: false,
+        headerBackImage: () => (
+          <Ionicons name="chevron-back" size={24} color={Colors.white} />
+        ),
       }}
     >
       {user ? (
@@ -177,185 +209,107 @@ const AppNavigator = () => {
           <Stack.Screen 
             name="DonorRegistration" 
             component={DonorRegistrationScreen}
-            options={{ 
-              title: 'Register as Donor',
-              headerStyle: {
-                backgroundColor: Colors.primary,
-              },
-              headerTintColor: Colors.white,
-              headerTitleStyle: {
-                fontWeight: 'bold',
-              },
-            }}
+            options={({ route }) => getHeaderOptions(
+              route.params?.isUpdate ? 'Update Donor Details' : 'Register as Donor'
+            )}
           />
           <Stack.Screen 
             name="DonationHistory" 
             component={DonationHistoryScreen}
-            options={{ 
-              title: 'Donation History',
-              headerStyle: {
-                backgroundColor: Colors.primary,
-              },
-              headerTintColor: Colors.white,
-              headerTitleStyle: {
-                fontWeight: 'bold',
-              },
-            }}
+            options={getHeaderOptions('Donation History')}
           />
           <Stack.Screen 
             name="EmergencyAlertCreation" 
             component={EmergencyAlertCreationScreen}
-            options={{ 
-              title: 'Create Emergency Alert',
-              headerStyle: {
-                backgroundColor: Colors.primary,
-              },
-              headerTintColor: Colors.white,
-              headerTitleStyle: {
-                fontWeight: 'bold',
-              },
-            }}
+            options={getHeaderOptions('Create Emergency Alert')}
           />
           <Stack.Screen 
             name="EmergencyAlertDetails" 
             component={EmergencyAlertDetailsScreen}
-            options={{ 
-              title: 'Alert Details',
-              headerStyle: {
-                backgroundColor: Colors.primary,
-              },
-              headerTintColor: Colors.white,
-              headerTitleStyle: {
-                fontWeight: 'bold',
-              },
-            }}
+            options={getHeaderOptions('Alert Details')}
           />
           <Stack.Screen 
             name="DonorManagement" 
             component={DonorManagementScreen}
-            options={{ 
-              title: 'Donors Management',
-              headerStyle: {
-                backgroundColor: Colors.primary,
-              },
-              headerTintColor: Colors.white,
-              headerTitleStyle: {
-                fontWeight: 'bold',
-              },
-            }}
+            options={getHeaderOptions('Donors Management')}
           />
           <Stack.Screen 
             name="DonorDetails" 
             component={DonorDetailsScreen}
-            options={{ 
-              title: 'Donor Details',
-              headerStyle: {
-                backgroundColor: Colors.primary,
-              },
-              headerTintColor: Colors.white,
-              headerTitleStyle: {
-                fontWeight: 'bold',
-              },
-            }}
+            options={getHeaderOptions('Donor Details')}
           />
           <Stack.Screen 
             name="DonorEdit" 
             component={DonorEditScreen}
-            options={{ 
-              title: 'Edit Donor',
-              headerStyle: {
-                backgroundColor: Colors.primary,
-              },
-              headerTintColor: Colors.white,
-              headerTitleStyle: {
-                fontWeight: 'bold',
-              },
-            }}
+            options={getHeaderOptions('Edit Donor')}
           />
           <Stack.Screen 
             name="ThankYou" 
             component={ThankYouScreen}
-            options={{ 
+            options={{
               title: 'Registration Successful',
               headerStyle: {
                 backgroundColor: Colors.success,
+                borderBottomLeftRadius: 8, // Curve bottom left edge
+                borderBottomRightRadius: 8, // Curve bottom right edge
               },
               headerTintColor: Colors.white,
               headerTitleStyle: {
                 fontWeight: 'bold',
+                textAlign: 'center',
               },
+              headerTitleAlign: 'center',
+              headerBackTitleVisible: false,
+              headerBackImage: () => (
+                <Ionicons name="chevron-back" size={24} color={Colors.white} />
+              ),
             }}
           />
           <Stack.Screen 
             name="CampManagement" 
             component={CampManagementScreen}
-            options={{ 
-              title: 'Camp Management',
-              headerStyle: {
-                backgroundColor: Colors.primary,
-              },
-              headerTintColor: Colors.white,
-              headerTitleStyle: {
-                fontWeight: 'bold',
-              },
-            }}
+            options={getHeaderOptions('Donation Camps')}
           />
           <Stack.Screen 
             name="CampCreation" 
             component={CampCreationScreen}
-            options={{ 
-              title: 'Create Camp',
-              headerStyle: {
-                backgroundColor: Colors.primary,
-              },
-              headerTintColor: Colors.white,
-              headerTitleStyle: {
-                fontWeight: 'bold',
-              },
-            }}
+            options={getHeaderOptions('Create Camp')}
           />
           <Stack.Screen 
             name="CampReview" 
             component={CampReviewScreen}
-            options={{ 
-              title: 'Review Camp',
-              headerStyle: {
-                backgroundColor: Colors.primary,
-              },
-              headerTintColor: Colors.white,
-              headerTitleStyle: {
-                fontWeight: 'bold',
-              },
-            }}
+            options={getHeaderOptions('Review Camp')}
           />
           <Stack.Screen 
             name="CampDetails" 
             component={CampDetailsScreen}
-            options={{ 
-              title: 'Camp Details',
-              headerStyle: {
-                backgroundColor: Colors.primary,
-              },
-              headerTintColor: Colors.white,
-              headerTitleStyle: {
-                fontWeight: 'bold',
-              },
-            }}
+            options={getHeaderOptions('Camp Details')}
+          />
+          <Stack.Screen 
+            name="AdminCampReview" 
+            component={AdminCampReviewScreen}
+            options={getHeaderOptions('Camp Request Review')}
           />
           <Stack.Screen 
             name="DonationEntry" 
             component={DonationEntryScreen}
-            options={{ 
-              title: 'Add Donation',
-              headerStyle: {
-                backgroundColor: Colors.primary,
-              },
-              headerTintColor: Colors.white,
-              headerTitleStyle: {
-                fontWeight: 'bold',
-              },
-            }}
+            options={getHeaderOptions('Add Donation')}
           />
+          <Stack.Screen 
+            name="NewsManagement" 
+            component={NewsManagementScreen}
+            options={getHeaderOptions('News Management')}
+          />
+          <Stack.Screen 
+            name="NewsCreation" 
+            component={NewsCreationScreen}
+            options={getHeaderOptions('Create News Article')}
+          />
+        <Stack.Screen 
+          name="NewsDetail" 
+          component={NewsDetailScreen}
+          options={getHeaderOptions('News Article')}
+        />
           {/* <Stack.Screen 
             name="IconTest" 
             component={SimpleIconTest}
@@ -386,16 +340,7 @@ const AppNavigator = () => {
           <Stack.Screen 
             name="Register" 
             component={RegisterScreen}
-            options={{ 
-              title: 'Create Account',
-              headerStyle: {
-                backgroundColor: Colors.primary,
-              },
-              headerTintColor: Colors.white,
-              headerTitleStyle: {
-                fontWeight: 'bold',
-              },
-            }}
+            options={getHeaderOptions('Create Account')}
           />
         </>
       )}

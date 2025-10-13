@@ -39,7 +39,6 @@
     "react-native-vector-icons": "^10.3.0",
     "react-native-web": "~0.19.6",
     "uuid": "^13.0.0",
-    "expo-dev-client": "~2.4.13",
     "expo-splash-screen": "~0.20.5"
   },
   "devDependencies": {

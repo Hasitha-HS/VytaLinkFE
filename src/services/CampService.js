@@ -149,6 +149,47 @@ class CampService {
       throw error;
     }
   }
+
+  // Get available dates for camp scheduling
+  async getAvailableDates(startDate = null, endDate = null) {
+    try {
+      const params = new URLSearchParams();
+      if (startDate) params.append('startDate', startDate);
+      if (endDate) params.append('endDate', endDate);
+      
+      const queryString = params.toString();
+      const url = queryString ? `/camps/availability/dates?${queryString}` : '/camps/availability/dates';
+      return await ApiService.get(url);
+    } catch (error) {
+      console.error('Error fetching available dates:', error);
+      throw error;
+    }
+  }
+
+  // Get available time slots for a specific date
+  async getAvailableTimeSlots(date) {
+    try {
+      return await ApiService.get(`/camps/availability/timeslots?date=${date}`);
+    } catch (error) {
+      console.error('Error fetching available time slots:', error);
+      throw error;
+    }
+  }
+
+  // Check if a specific time slot is available
+  async checkTimeSlotAvailability(date, startTime, endTime) {
+    try {
+      const params = new URLSearchParams({
+        date,
+        startTime,
+        endTime
+      });
+      return await ApiService.get(`/camps/availability/check?${params.toString()}`);
+    } catch (error) {
+      console.error('Error checking time slot availability:', error);
+      throw error;
+    }
+  }
 }
 
 export default new CampService();

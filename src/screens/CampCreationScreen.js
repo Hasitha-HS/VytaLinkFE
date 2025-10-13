@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import {
   View,
   ScrollView,
@@ -11,13 +11,16 @@ import {
   Button,
   TextInput,
   RadioButton,
-  HelperText
+  HelperText,
+  ActivityIndicator
 } from 'react-native-paper';
 import { useNavigation } from '@react-navigation/native';
 import { AuthContext } from '../context/AuthContext';
 import { Colors } from '../utils/Colors';
 import Icon from '../components/common/Icon';
 import CampService from '../services/CampService';
+import DatePicker from '../components/common/DatePicker';
+import TimeSlotPicker from '../components/common/TimeSlotPicker';
 
 const CampCreationScreen = () => {
   const navigation = useNavigation();
@@ -40,6 +43,56 @@ const CampCreationScreen = () => {
     notes: ''
   });
   const [errors, setErrors] = useState({});
+  const [availableTimeSlots, setAvailableTimeSlots] = useState([]);
+  const [loadingTimeSlots, setLoadingTimeSlots] = useState(false);
+  const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
+
+  // Load available time slots when date changes
+  useEffect(() => {
+    if (formData.startDate) {
+      loadAvailableTimeSlots(formData.startDate);
+    } else {
+      setAvailableTimeSlots([]);
+      setSelectedTimeSlot(null);
+    }
+  }, [formData.startDate]);
+
+  const loadAvailableTimeSlots = async (date) => {
+    try {
+      setLoadingTimeSlots(true);
+      const slots = await CampService.getAvailableTimeSlots(date);
+      setAvailableTimeSlots(slots);
+      
+      // Clear selected time slot if it's no longer available
+      if (selectedTimeSlot && !slots.find(slot => slot.id === selectedTimeSlot.id && slot.available)) {
+        setSelectedTimeSlot(null);
+        setFormData(prev => ({ ...prev, startTime: '', endTime: '' }));
+      }
+    } catch (error) {
+      console.error('Error loading time slots:', error);
+      Alert.alert('Error', 'Failed to load available time slots');
+    } finally {
+      setLoadingTimeSlots(false);
+    }
+  };
+
+  const handleTimeSlotSelect = (timeSlot) => {
+    setSelectedTimeSlot(timeSlot);
+    setFormData(prev => ({
+      ...prev,
+      startTime: timeSlot.startTime,
+      endTime: timeSlot.endTime
+    }));
+    
+    // Clear time-related errors
+    if (errors.startTime || errors.endTime) {
+      setErrors(prev => ({
+        ...prev,
+        startTime: '',
+        endTime: ''
+      }));
+    }
+  };
 
   const validateForm = () => {
     const newErrors = {};
@@ -68,12 +121,8 @@ const CampCreationScreen = () => {
       newErrors.endDate = 'End date is required';
     }
 
-    if (!formData.startTime) {
-      newErrors.startTime = 'Start time is required';
-    }
-
-    if (!formData.endTime) {
-      newErrors.endTime = 'End time is required';
+    if (!selectedTimeSlot) {
+      newErrors.timeSlot = 'Please select a time slot';
     }
 
     if (!formData.contactPerson.trim()) {
@@ -122,14 +171,15 @@ const CampCreationScreen = () => {
         ...formData,
         organizerId: user.id,
         organizerName: user.username,
-        status: 'PENDING'
+        status: 'PENDING',
+        requestedAt: new Date().toISOString()
       };
 
       await CampService.createCamp(campData);
       
       Alert.alert(
-        'Success',
-        'Camp request submitted successfully! It will be reviewed by administrators.',
+        'Camp Request Submitted',
+        'Your camp request has been submitted successfully! You will receive a notification once an administrator reviews and approves your request.',
         [
           {
             text: 'OK',
@@ -234,53 +284,34 @@ const CampCreationScreen = () => {
               Schedule
             </Text>
             
-            <View style={styles.row}>
-              <TextInput
-                label="Start Date *"
-                value={formData.startDate}
-                onChangeText={(value) => handleInputChange('startDate', value)}
-                error={!!errors.startDate}
-                style={[styles.input, styles.halfInput]}
-                mode="outlined"
-                placeholder="YYYY-MM-DD"
-              />
-              <TextInput
-                label="End Date *"
-                value={formData.endDate}
-                onChangeText={(value) => handleInputChange('endDate', value)}
-                error={!!errors.endDate}
-                style={[styles.input, styles.halfInput]}
-                mode="outlined"
-                placeholder="YYYY-MM-DD"
-              />
-            </View>
-            <HelperText type="error" visible={!!errors.startDate || !!errors.endDate}>
-              {errors.startDate || errors.endDate}
-            </HelperText>
+            <DatePicker
+              label="Camp Date *"
+              value={formData.startDate}
+              onChange={(value) => {
+                handleInputChange('startDate', value);
+                handleInputChange('endDate', value); // Same day for start and end
+              }}
+              error={errors.startDate}
+              minimumDate={new Date(Date.now() + 24 * 60 * 60 * 1000)} // Tomorrow
+              maximumDate={new Date(Date.now() + 90 * 24 * 60 * 60 * 1000)} // 3 months from now
+            />
 
-            <View style={styles.row}>
-              <TextInput
-                label="Start Time *"
-                value={formData.startTime}
-                onChangeText={(value) => handleInputChange('startTime', value)}
-                error={!!errors.startTime}
-                style={[styles.input, styles.halfInput]}
-                mode="outlined"
-                placeholder="HH:MM"
+            {loadingTimeSlots ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={Colors.primary} />
+                <Text variant="bodySmall" style={styles.loadingText}>
+                  Loading available time slots...
+                </Text>
+              </View>
+            ) : (
+              <TimeSlotPicker
+                label="Time Slot *"
+                value={selectedTimeSlot}
+                onChange={handleTimeSlotSelect}
+                availableSlots={availableTimeSlots}
+                error={errors.timeSlot}
               />
-              <TextInput
-                label="End Time *"
-                value={formData.endTime}
-                onChangeText={(value) => handleInputChange('endTime', value)}
-                error={!!errors.endTime}
-                style={[styles.input, styles.halfInput]}
-                mode="outlined"
-                placeholder="HH:MM"
-              />
-            </View>
-            <HelperText type="error" visible={!!errors.startTime || !!errors.endTime}>
-              {errors.startTime || errors.endTime}
-            </HelperText>
+            )}
 
             <TextInput
               label="Expected Number of Donors"
@@ -438,6 +469,16 @@ const styles = StyleSheet.create({
   },
   submitButton: {
     backgroundColor: Colors.primary,
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+  },
+  loadingText: {
+    marginLeft: 8,
+    color: Colors.gray[600],
   },
 });
 

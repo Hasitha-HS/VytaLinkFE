@@ -361,7 +361,7 @@ const styles = StyleSheet.create({
   alertTitle: {
     flex: 1,
     fontWeight: 'bold',
-    color: Colors.primary,
+    color: Colors.text.primary,
   },
   urgencyChip: {
     marginLeft: 8,

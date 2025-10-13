@@ -25,6 +25,7 @@ import { Colors } from '../utils/Colors';
 import { formatBloodType } from '../utils/Constants';
 import EmergencyAlertService from '../services/EmergencyAlertService';
 import DashboardService from '../services/DashboardService';
+import NewsService from '../services/NewsService';
 import Icon from '../components/common/Icon';
 import { Icons, getIcon } from '../utils/Icons';
 
@@ -40,11 +41,8 @@ const HomeScreen = ({ navigation }) => {
   const [snackbarMessage, setSnackbarMessage] = useState('');
 
   // Real data from API
-  const [latestNews, setLatestNews] = useState({
-    title: "Blood Donation Drive Success",
-    content: "Our recent blood donation drive collected over 500 units, helping save countless lives in our community.",
-    date: "2 hours ago"
-  });
+  const [latestNews, setLatestNews] = useState(null);
+  const [newsLoading, setNewsLoading] = useState(true);
 
   const [stats, setStats] = useState({
     activeAlerts: 0,
@@ -60,9 +58,11 @@ const HomeScreen = ({ navigation }) => {
   const loadData = async () => {
     try {
       setLoadingStats(true);
+      setNewsLoading(true);
       await Promise.all([
         refreshAlerts(),
-        loadDashboardStats()
+        loadDashboardStats(),
+        loadLatestNews()
       ]);
     } catch (error) {
       console.error('Error loading data:', error);
@@ -70,6 +70,19 @@ const HomeScreen = ({ navigation }) => {
       showSnackbar(msg);
     } finally {
       setLoadingStats(false);
+      setNewsLoading(false);
+    }
+  };
+
+  const loadLatestNews = async () => {
+    try {
+      const newsData = await NewsService.getLatestNews(1);
+      if (newsData && newsData.length > 0) {
+        setLatestNews(newsData[0]);
+      }
+    } catch (error) {
+      console.error('Error loading latest news:', error);
+      // Keep latestNews as null if API fails
     }
   };
 
@@ -250,23 +263,48 @@ const HomeScreen = ({ navigation }) => {
 
         {/* Latest News Card */}
         <View style={styles.newsSection}>
-          <Card style={styles.newsCard}>
+          <Card 
+            style={styles.newsCard}
+            onPress={() => latestNews && navigation.navigate('NewsDetail', { newsId: latestNews.id })}
+          >
             <Card.Content>
               <View style={styles.newsHeader}>
-                <Icon {...getIcon('news', 24, Colors.primary)} />
+                <Icon {...getIcon('newspaper-outline', 24, Colors.primary)} />
                 <Text variant="titleMedium" style={styles.newsTitle}>
                   Latest News
                 </Text>
               </View>
-              <Text variant="headlineSmall" style={styles.newsArticleTitle}>
-                {latestNews.title}
-              </Text>
-              <Text variant="bodyMedium" style={styles.newsContent}>
-                {latestNews.content}
-              </Text>
-              <Text variant="bodySmall" style={styles.newsDate}>
-                {latestNews.date}
-              </Text>
+              
+              {newsLoading ? (
+                <View style={styles.newsLoadingContainer}>
+                  <ActivityIndicator size="small" color={Colors.primary} />
+                  <Text variant="bodyMedium" style={styles.newsLoadingText}>
+                    Loading latest news...
+                  </Text>
+                </View>
+              ) : latestNews ? (
+                <>
+                  <Text variant="headlineSmall" style={styles.newsArticleTitle}>
+                    {latestNews.title}
+                  </Text>
+                  <Text variant="bodyMedium" style={styles.newsContent}>
+                    {latestNews.description}
+                  </Text>
+                  <Text variant="bodySmall" style={styles.newsDate}>
+                    {new Date(latestNews.createdAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'short',
+                      day: 'numeric'
+                    })}
+                  </Text>
+                </>
+              ) : (
+                <View style={styles.noNewsContainer}>
+                  <Text variant="bodyMedium" style={styles.noNewsText}>
+                    No news articles available at the moment.
+                  </Text>
+                </View>
+              )}
             </Card.Content>
           </Card>
         </View>
@@ -384,6 +422,7 @@ const HomeScreen = ({ navigation }) => {
               </Text>
               
               <View style={styles.navigationGrid}>
+                {/* Keep only 4 essential items in Quick Actions */}
                 <Button
                   mode="outlined"
                   onPress={() => navigation.navigate('Profile')}
@@ -413,37 +452,14 @@ const HomeScreen = ({ navigation }) => {
                   </Button>
                 )}
                 
-                
-                {(user?.role === 'ADMIN' || user?.role === 'STAFF') && (
-                  <>
-                    <Button
-                      mode="outlined"
-                      onPress={() => navigation.navigate('DonorManagement')}
-                      style={styles.navButton}
-                      icon="account-group"
-                    >
-                      Manage Donors
-                    </Button>
-                    
-                    <Button
-                      mode="outlined"
-                      onPress={() => navigation.navigate('EmergencyAlertCreation')}
-                      style={styles.navButton}
-                      icon="alert-plus"
-                    >
-                      Create Alert
-                    </Button>
-                    
-                    <Button
-                      mode="outlined"
-                      onPress={() => navigation.navigate('DonationHistory')}
-                      style={styles.navButton}
-                      icon="history"
-                    >
-                      Donation History
-                    </Button>
-                  </>
-                )}
+                <Button
+                  mode="outlined"
+                  onPress={() => navigation.navigate('CampManagement')}
+                  style={styles.navButton}
+                  icon="calendar"
+                >
+                  Donation Camps
+                </Button>
               </View>
             </Card.Content>
           </Card>
@@ -471,14 +487,6 @@ const HomeScreen = ({ navigation }) => {
                     Donor Management
                   </Button>
                   
-                  <Button
-                    mode="contained"
-                    onPress={() => navigation.navigate('EmergencyAlertCreation')}
-                    style={[styles.managementButton, { backgroundColor: Colors.error }]}
-                    icon="alert-plus"
-                  >
-                    Create Emergency Alert
-                  </Button>
                   
                   <Button
                     mode="contained"
@@ -486,25 +494,16 @@ const HomeScreen = ({ navigation }) => {
                     style={[styles.managementButton, { backgroundColor: Colors.success }]}
                     icon="history"
                   >
-                    Donation History
+                    View All Donations
                   </Button>
                   
                   <Button
                     mode="contained"
-                    onPress={() => navigation.navigate('Notifications')}
-                    style={[styles.managementButton, { backgroundColor: Colors.warning }]}
-                    icon="bell"
-                  >
-                    View Alerts
-                  </Button>
-                  
-                  <Button
-                    mode="contained"
-                    onPress={() => navigation.navigate('CampManagement')}
+                    onPress={() => navigation.navigate('AdminCampReview')}
                     style={[styles.managementButton, { backgroundColor: Colors.info }]}
-                    icon="calendar"
+                    icon="calendar-check"
                   >
-                    Camp Management
+                    Review Camps
                   </Button>
                   
                   <Button
@@ -514,6 +513,15 @@ const HomeScreen = ({ navigation }) => {
                     icon="plus"
                   >
                     Add Donation
+                  </Button>
+                  
+                  <Button
+                    mode="contained"
+                    onPress={() => navigation.navigate('NewsManagement')}
+                    style={[styles.managementButton, { backgroundColor: Colors.primary }]}
+                    icon="newspaper"
+                  >
+                    Manage News
                   </Button>
                   
                 </View>
@@ -714,6 +722,24 @@ const styles = StyleSheet.create({
     color: Colors.gray[500],
     fontStyle: 'italic',
   },
+  newsLoadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+  },
+  newsLoadingText: {
+    marginLeft: 8,
+    color: Colors.gray[600],
+  },
+  noNewsContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+  },
+  noNewsText: {
+    color: Colors.gray[600],
+    textAlign: 'center',
+  },
   
   // User Details Section
   userDetailsSection: {
@@ -835,14 +861,11 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   managementGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    flexDirection: 'column',
     gap: 12,
   },
   managementButton: {
-    flex: 1,
-    minWidth: '45%',
+    width: '100%',
     marginBottom: 8,
   },
   

@@ -1,6 +1,6 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { View, StyleSheet, ScrollView } from 'react-native';
-import { Text, TextInput, Button, Card, Snackbar, Menu } from 'react-native-paper';
+import { Text, TextInput, Button, Card, Snackbar, Menu, ActivityIndicator } from 'react-native-paper';
 import { AuthContext } from '../context/AuthContext';
 import { Colors } from '../utils/Colors';
 import { toMessageString } from '../utils/Helpers';
@@ -24,6 +24,57 @@ const DonorRegistrationScreen = ({ navigation }) => {
   const [genderMenuVisible, setGenderMenuVisible] = useState(false);
   const [bloodTypeMenuVisible, setBloodTypeMenuVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isExistingDonor, setIsExistingDonor] = useState(false);
+  const [existingDonorId, setExistingDonorId] = useState(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+
+  // Check if user is already a donor and fetch their data
+  useEffect(() => {
+    const checkExistingDonor = async () => {
+      if (!user?.email) {
+        setIsInitialLoading(false);
+        return;
+      }
+
+      try {
+        console.log('🔍 Checking if user is already a donor...');
+        const existingDonor = await DonorService.getDonorByEmail(user.email);
+        
+        if (existingDonor && existingDonor.id) {
+          console.log('✅ User is already a donor, loading existing data');
+          setIsExistingDonor(true);
+          setExistingDonorId(existingDonor.id);
+          
+          // Parse name into first and last name
+          const nameParts = existingDonor.name ? existingDonor.name.split(' ') : ['', ''];
+          const firstName = nameParts[0] || '';
+          const lastName = nameParts.slice(1).join(' ') || '';
+          
+          // Populate form with existing data
+          setFormData({
+            firstName: firstName,
+            lastName: lastName,
+            phoneNumber: existingDonor.phone || '',
+            age: existingDonor.age ? existingDonor.age.toString() : '',
+            gender: existingDonor.gender || 'OTHER',
+            bloodType: existingDonor.bloodType || 'O_POSITIVE',
+            address: existingDonor.address || '',
+            weight: existingDonor.weight ? existingDonor.weight.toString() : ''
+          });
+        } else {
+          console.log('ℹ️ User is not a donor yet, showing registration form');
+          setIsExistingDonor(false);
+        }
+      } catch (error) {
+        console.log('ℹ️ User is not a registered donor:', error.message);
+        setIsExistingDonor(false);
+      } finally {
+        setIsInitialLoading(false);
+      }
+    };
+
+    checkExistingDonor();
+  }, [user?.email]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -46,7 +97,7 @@ const DonorRegistrationScreen = ({ navigation }) => {
     return null;
   };
 
-  const handleRegisterAsDonor = async () => {
+  const handleSubmit = async () => {
     setError('');
     const validationError = validateForm();
     if (validationError) {
@@ -59,49 +110,87 @@ const DonorRegistrationScreen = ({ navigation }) => {
     try {
       setIsLoading(true);
       
-      const donorData = {
-        userId: user.id,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phoneNumber: formData.phoneNumber,
-        age: formData.age,
-        gender: formData.gender,
-        bloodType: formData.bloodType,
-        address: formData.address,
-        weight: formData.weight,
-        email: user.email
-      };
+      if (isExistingDonor) {
+        // Update existing donor
+        const updateData = {
+          name: `${formData.firstName} ${formData.lastName}`.trim(),
+          age: parseInt(formData.age),
+          gender: formData.gender,
+          bloodType: formData.bloodType,
+          phone: formData.phoneNumber,
+          email: user.email,
+          address: formData.address,
+          weight: formData.weight ? parseFloat(formData.weight) : null
+        };
 
-      const response = await DonorService.registerDonor(donorData);
-      
-      if (response.id) {
-        // Update user context with donor information
-        await updateUser({
-          donorId: response.id,
-          role: 'DONOR',
-          ...response
-        });
+        const response = await DonorService.updateDonorProfile(existingDonorId, updateData);
         
-        setSnackbarMessage('Successfully registered as a donor!');
-        setSnackbarVisible(true);
-        
-        // Navigate to thank you screen
-        setTimeout(() => {
-          navigation.navigate('ThankYou', { 
-            donorData: {
-              name: `${formData.firstName} ${formData.lastName}`,
-              bloodType: formData.bloodType,
-              phone: formData.phoneNumber
-            }
+        if (response) {
+          // Update user context with updated donor information
+          await updateUser({
+            donorId: existingDonorId,
+            role: 'DONOR',
+            ...response
           });
-        }, 2000);
+          
+          setSnackbarMessage('Donor details updated successfully!');
+          setSnackbarVisible(true);
+          
+          // Navigate back after a short delay
+          setTimeout(() => {
+            navigation.goBack();
+          }, 2000);
+        } else {
+          setError('Failed to update donor details');
+          setSnackbarMessage('Failed to update donor details');
+          setSnackbarVisible(true);
+        }
       } else {
-        setError('Donor registration failed');
-        setSnackbarMessage('Donor registration failed');
-        setSnackbarVisible(true);
+        // Register new donor
+        const donorData = {
+          userId: user.id,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          phoneNumber: formData.phoneNumber,
+          age: formData.age,
+          gender: formData.gender,
+          bloodType: formData.bloodType,
+          address: formData.address,
+          weight: formData.weight,
+          email: user.email
+        };
+
+        const response = await DonorService.registerDonor(donorData);
+        
+        if (response.id) {
+          // Update user context with donor information
+          await updateUser({
+            donorId: response.id,
+            role: 'DONOR',
+            ...response
+          });
+          
+          setSnackbarMessage('Successfully registered as a donor!');
+          setSnackbarVisible(true);
+          
+          // Navigate to thank you screen
+          setTimeout(() => {
+            navigation.navigate('ThankYou', { 
+              donorData: {
+                name: `${formData.firstName} ${formData.lastName}`,
+                bloodType: formData.bloodType,
+                phone: formData.phoneNumber
+              }
+            });
+          }, 2000);
+        } else {
+          setError('Donor registration failed');
+          setSnackbarMessage('Donor registration failed');
+          setSnackbarVisible(true);
+        }
       }
     } catch (error) {
-      console.error('Donor registration error:', error);
+      console.error('Donor operation error:', error);
       
       // Handle specific error cases with cleaner messages
       let errorMessage = 'Donor registration failed. Please try again.';
@@ -129,14 +218,26 @@ const DonorRegistrationScreen = ({ navigation }) => {
     }
   };
 
+  // Show loading spinner while checking if user is already a donor
+  if (isInitialLoading) {
+    return (
+      <View style={[styles.container, styles.loadingContainer]}>
+        <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>Loading donor information...</Text>
+      </View>
+    );
+  }
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.content}>
         <Card style={styles.card}>
           <Card.Content>
-            <Text variant="headlineSmall" style={styles.title}>Register as Donor</Text>
+            <Text variant="headlineSmall" style={styles.title}>
+              {isExistingDonor ? "Update Donor Details" : "Register as Donor"}
+            </Text>
             <Text variant="bodyMedium" style={styles.subtitle}>
-              Complete your donor profile to help save lives
+              {isExistingDonor ? "Update your donor information" : "Complete your donor profile to help save lives"}
             </Text>
             
             <View style={styles.nameRow}>
@@ -242,13 +343,13 @@ const DonorRegistrationScreen = ({ navigation }) => {
             
             <Button 
               mode="contained" 
-              onPress={handleRegisterAsDonor} 
+              onPress={handleSubmit} 
               loading={isLoading} 
               disabled={!formData.firstName || !formData.lastName || !formData.phoneNumber || 
                        !formData.age || !formData.address}
               style={styles.registerButton}
             >
-              Register as Donor
+              {isExistingDonor ? "Update Donor Details" : "Register as Donor"}
             </Button>
             
             <Button 
@@ -278,6 +379,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.gray[50],
+  },
+  loadingContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: Colors.gray[600],
   },
   content: {
     flex: 1,

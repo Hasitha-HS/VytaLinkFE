@@ -206,7 +206,7 @@ const CampManagementScreen = () => {
       {/* Header */}
       <View style={styles.header}>
         <Text variant="headlineSmall" style={styles.headerTitle}>
-          Camp Management
+          Donation Camps
         </Text>
         <Text variant="bodyMedium" style={styles.headerSubtitle}>
           Manage blood donation camps and review requests

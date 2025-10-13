@@ -332,14 +332,17 @@ const NotificationsScreen = ({ navigation }) => {
                 Create Alert
               </Button>
               
-              <Button
-                mode="outlined"
-                onPress={() => navigation.navigate('DonorManagement')}
-                style={styles.headerButton}
-                icon="account-group"
-              >
-                Manage Donors
-              </Button>
+              {/* Only show Manage Donors for Admin/Staff */}
+              {(user?.role === 'ADMIN' || user?.role === 'STAFF') && (
+                <Button
+                  mode="outlined"
+                  onPress={() => navigation.navigate('DonorManagement')}
+                  style={styles.headerButton}
+                  icon="account-group"
+                >
+                  Manage Donors
+                </Button>
+              )}
             </View>
           </Card.Content>
         </Card>

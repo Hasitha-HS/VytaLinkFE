@@ -206,7 +206,7 @@ const DonationEntryScreen = () => {
                   {donors.map((donor) => (
                     <Picker.Item
                       key={donor.id}
-                      label={`${donor.firstName} ${donor.lastName} (${donor.bloodType})`}
+                      label={`${donor.name} (${donor.bloodType})`}
                       value={donor.id}
                     />
                   ))}
